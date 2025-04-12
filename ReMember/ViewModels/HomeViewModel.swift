@@ -68,6 +68,14 @@ class HomeViewModel: ObservableObject {
         }
     }
     
+    func deleteEntry(id: UUID) {
+        // Add a small delay to allow for animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+            self.store.deleteEntry(id: id)
+            HapticFeedback.heavy() // Stronger feedback when deletion completes
+        }
+    }
+    
     func restoreEntry(id: UUID) {
         store.restoreEntry(id: id)
     }

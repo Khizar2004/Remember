@@ -7,6 +7,8 @@ struct HomeView: View {
     @State private var refreshTrigger = false // For forced refreshes - keeping for compatibility
     @State private var bootupComplete = false
     @State private var bootProgress = 0.0
+    @State private var showingDeleteConfirmation = false
+    @State private var entryToDelete: UUID?
     
     var body: some View {
         NavigationStack {
@@ -144,21 +146,35 @@ struct HomeView: View {
                         }
                         Spacer()
                     } else {
-                        // Entries list - without GeometryReader to prevent layout instability
-                        ScrollView(.vertical, showsIndicators: false) {
-                            LazyVStack(spacing: 12) {
-                                ForEach(viewModel.filteredEntries) { entry in
+                        // Entries list - using List for proper swipe action support
+                        List {
+                            ForEach(viewModel.filteredEntries) { entry in
+                                ZStack {
                                     GlitchedEntryCard(entry: entry)
-                                        .onTapGesture { 
-                                            selectedEntry = entry 
-                                        }
-                                        .frame(height: 140)
-                                        .padding(.horizontal, 16) // Apply horizontal padding here
+                                }
+                                .contentShape(Rectangle())
+                                .onTapGesture { 
+                                    selectedEntry = entry 
+                                }
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                                .frame(height: 140)
+                                .swipeActions(edge: .trailing) {
+                                    Button(role: .destructive) {
+                                        entryToDelete = entry.id
+                                        showingDeleteConfirmation = true
+                                        HapticFeedback.light()
+                                    } label: {
+                                        Label("DELETE", systemImage: "trash")
+                                    }
                                 }
                             }
-                            .padding(.vertical, 4) // Add slight vertical padding
                         }
-                        .frame(maxHeight: .infinity) // Take remaining space
+                        .listStyle(.plain)
+                        .background(GlitchTheme.background)
+                        .scrollContentBackground(.hidden)
+                        .environment(\.defaultMinListRowHeight, 0)
                     }
                 }
                 
@@ -218,7 +234,7 @@ struct HomeView: View {
                     HapticFeedback.light()
                 }
             }) {
-                EntryEditView(store: viewModel.store)
+                EntryEditView(store: viewModel.store, entry: nil)
             }
             .sheet(item: $selectedEntry, onDismiss: {
                 // Refresh the entries list when returning from the detail view
@@ -228,6 +244,33 @@ struct HomeView: View {
                 }
             }) { entry in
                 EntryDetailView(store: viewModel.store, entry: entry)
+            }
+            .confirmationDialog(
+                "DELETE MEMORY FRAGMENT?",
+                isPresented: $showingDeleteConfirmation,
+                titleVisibility: .visible
+            ) {
+                Button("REMOVE FROM SYSTEM", role: .destructive) {
+                    if let id = entryToDelete {
+                        withAnimation(.easeInOut) {
+                            // Apply glitch effect first
+                            viewModel.deleteEntry(id: id)
+                            
+                            // Apply haptic feedback for deletion action
+                            HapticFeedback.medium()
+                        }
+                    }
+                }
+                
+                Button("CANCEL", role: .cancel) {}
+            } message: {
+                Text("THIS ACTION CANNOT BE UNDONE.")
+            }
+            .onChange(of: showingDeleteConfirmation) { isShowing in
+                if !isShowing && entryToDelete != nil {
+                    // Reset the entry to delete when dialog is dismissed
+                    entryToDelete = nil
+                }
             }
         }
     }
@@ -356,6 +399,7 @@ struct BootSequenceView: View {
                 }
             }
             .padding(40)
+            .padding(.top, 60) // Added extra top padding to account for the notch
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .digitalNoise(intensity: 0.3)
             .rgbSplit(amount: 2, angle: 0)
@@ -439,6 +483,7 @@ struct BootSequenceView: View {
 // Enhanced glitched entry card with fixed dimensions
 struct GlitchedEntryCard: View {
     let entry: JournalEntry
+    @State private var isDeleting = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -490,12 +535,20 @@ struct GlitchedEntryCard: View {
             RoundedRectangle(cornerRadius: 6)
                 .stroke(GlitchTheme.colorForDecayLevel(entry.decayLevel).opacity(0.3), lineWidth: 1)
         )
+        .opacity(isDeleting ? 0.0 : 1.0)
+        .rgbSplit(amount: isDeleting ? 6.0 : 0.0, angle: 90)
     }
     
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM.dd.yy HH:mm"
         return formatter.string(from: date)
+    }
+    
+    func triggerDeleteAnimation() {
+        withAnimation(.easeInOut(duration: 0.8)) {
+            isDeleting = true
+        }
     }
 }
 

@@ -535,6 +535,22 @@ struct EnhancedRestorationView: View {
     }
 }
 
+// Memory deletion effect animation
+struct DeletionEffectModifier: ViewModifier {
+    @State private var isAnimating = false
+    
+    func body(content: Content) -> some View {
+        content
+            .modifier(GlitchTheme.RGBSplitModifier(amount: isAnimating ? 6.0 : 0.0, angle: 90))
+            .opacity(isAnimating ? 0.0 : 1.0)
+            .onAppear {
+                withAnimation(.easeInOut(duration: 0.8)) {
+                    isAnimating = true
+                }
+            }
+    }
+}
+
 // Extensions to add the theme modifiers to views
 extension View {
     func crtEffect(intensity: Double = 1.0) -> some View {
@@ -567,5 +583,9 @@ extension View {
             placeholder().opacity(shouldShow ? 1 : 0)
             self
         }
+    }
+    
+    func deletionEffect() -> some View {
+        modifier(DeletionEffectModifier())
     }
 } 
