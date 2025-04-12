@@ -5,6 +5,7 @@ struct EntryEditView: View {
     @Environment(\.presentationMode) var presentationMode
     @State private var cursorVisible = true
     @State private var randomGlitches = false
+    @State private var hasBeenDismissed = false
     
     init(store: JournalEntryStore, entry: JournalEntry? = nil) {
         _viewModel = StateObject(wrappedValue: EntryViewModel(store: store, entry: entry))
@@ -59,16 +60,16 @@ struct EntryEditView: View {
                     
                     // Save button with terminal styling
                     Button(action: {
-                        // Trigger random glitch effects on save
-                        randomGlitches = true
+                        viewModel.saveEntry()
                         
-                        // Return to normal after a delay and save
-                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                            randomGlitches = false
-                            viewModel.saveEntry()
+                        // Ensure parent view is fully refreshed
+                        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                            // Force reload entries in the store before dismissing
+                            viewModel.reloadEntries()
                             
-                            // Dismiss this view after saving
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                            // Dismiss the sheet
+                            if !hasBeenDismissed {
+                                hasBeenDismissed = true
                                 presentationMode.wrappedValue.dismiss()
                             }
                         }
@@ -173,6 +174,125 @@ struct EntryEditView: View {
                             }
                         }
                         
+                        // Tag section
+                        VStack(alignment: .leading, spacing: 10) {
+                            Text("MEMORY TAGS:")
+                                .font(GlitchTheme.terminalFont(size: 12))
+                                .foregroundColor(GlitchTheme.glitchYellow.opacity(0.7))
+                            
+                            // Current tags
+                            if !viewModel.tags.isEmpty {
+                                ScrollView(.horizontal, showsIndicators: false) {
+                                    HStack(spacing: 8) {
+                                        ForEach(viewModel.tags, id: \.self) { tag in
+                                            HStack(spacing: 4) {
+                                                Text(tag)
+                                                    .font(GlitchTheme.pixelFont(size: 12))
+                                                    .foregroundColor(GlitchTheme.glitchCyan)
+                                                
+                                                Button(action: {
+                                                    viewModel.removeTag(tag)
+                                                    HapticFeedback.light()
+                                                }) {
+                                                    Image(systemName: "xmark.circle.fill")
+                                                        .font(.system(size: 10))
+                                                        .foregroundColor(GlitchTheme.glitchYellow)
+                                                }
+                                            }
+                                            .padding(.horizontal, 8)
+                                            .padding(.vertical, 4)
+                                            .background(GlitchTheme.cardBackground)
+                                            .cornerRadius(4)
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .stroke(GlitchTheme.glitchCyan.opacity(0.6), lineWidth: 1)
+                                            )
+                                        }
+                                    }
+                                    .padding(.vertical, 4)
+                                }
+                            } else {
+                                Text("NO TAGS - ADD BELOW")
+                                    .font(GlitchTheme.pixelFont(size: 12))
+                                    .foregroundColor(GlitchTheme.terminalGreen.opacity(0.6))
+                                    .padding(.vertical, 8)
+                            }
+                            
+                            // Add tag field
+                            HStack {
+                                TextField("ADD NEW TAG", text: $viewModel.newTagText)
+                                    .font(GlitchTheme.terminalFont(size: 14))
+                                    .foregroundColor(GlitchTheme.terminalGreen)
+                                    .accentColor(GlitchTheme.glitchCyan)
+                                    .autocapitalization(.allCharacters)
+                                    .disableAutocorrection(true)
+                                    .padding(8)
+                                    .background(GlitchTheme.fieldBackground)
+                                    .cornerRadius(4)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 4)
+                                            .stroke(GlitchTheme.terminalGreen.opacity(0.5), lineWidth: 1)
+                                    )
+                                    .onSubmit {
+                                        viewModel.addTag()
+                                    }
+                                
+                                Button(action: {
+                                    viewModel.addTag()
+                                    HapticFeedback.light()
+                                }) {
+                                    Text("ADD")
+                                        .font(GlitchTheme.terminalFont(size: 14))
+                                        .foregroundColor(GlitchTheme.background)
+                                        .padding(.horizontal, 12)
+                                        .padding(.vertical, 8)
+                                        .background(GlitchTheme.glitchCyan)
+                                        .cornerRadius(4)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 4)
+                                                .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
+                                        )
+                                }
+                                .disabled(viewModel.newTagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                                .opacity(viewModel.newTagText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? 0.5 : 1.0)
+                            }
+                            
+                            // Suggested tags
+                            if !viewModel.availableTags.isEmpty {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("SUGGESTED TAGS:")
+                                        .font(GlitchTheme.terminalFont(size: 12))
+                                        .foregroundColor(GlitchTheme.glitchYellow.opacity(0.7))
+                                    
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(viewModel.availableTags.filter { !viewModel.tags.contains($0) }, id: \.self) { tag in
+                                                Text(tag)
+                                                    .font(GlitchTheme.pixelFont(size: 12))
+                                                    .foregroundColor(GlitchTheme.glitchCyan)
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 4)
+                                                    .background(GlitchTheme.cardBackground)
+                                                    .cornerRadius(4)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 4)
+                                                            .stroke(GlitchTheme.glitchCyan.opacity(0.3), lineWidth: 1)
+                                                    )
+                                                    .onTapGesture {
+                                                        if !viewModel.tags.contains(tag) {
+                                                            viewModel.tags.append(tag)
+                                                            HapticFeedback.light()
+                                                        }
+                                                    }
+                                            }
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.vertical, 20)
+                        
                         // System info display
                         HStack {
                             Spacer()
@@ -189,6 +309,10 @@ struct EntryEditView: View {
                             }
                         }
                         .padding(.top, 10)
+                        
+                        // Media Attachments - removing the Section wrapper to maintain consistent styling
+                        PhotoPickerView(viewModel: viewModel)
+                            .padding(.top, 10)
                     }
                     .padding(.vertical, 10)
                 }
@@ -239,7 +363,7 @@ struct EntryEditView: View {
         .onDisappear {
             // Double-check to ensure the home view refreshes
             if viewModel.entrySaved {
-                viewModel.viewModelStore.loadEntries()
+                viewModel.reloadEntries()
             }
         }
     }

@@ -22,7 +22,7 @@ struct HomeView: View {
                     VStack(spacing: 0) {
                         // App title and status
                         HStack {
-                            Text("RE:MEMBER")
+                    Text("RE:MEMBER")
                                 .font(GlitchTheme.terminalFont(size: 28))
                                 .foregroundColor(GlitchTheme.terminalGreen)
                                 .fixedSize()
@@ -65,8 +65,8 @@ struct HomeView: View {
                                     .font(GlitchTheme.terminalFont(size: 16))
                                     .foregroundColor(GlitchTheme.terminalGreen)
                                     .accentColor(GlitchTheme.glitchCyan)
-                                    .autocapitalization(.none)
-                                    .disableAutocorrection(true)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
                                     .placeholder(when: viewModel.searchText.isEmpty) {
                                         Text("SEARCH MEMORY DATABASE")
                                             .font(GlitchTheme.terminalFont(size: 16))
@@ -75,8 +75,8 @@ struct HomeView: View {
                                 
                                 Spacer()
                                 
-                                Button(action: {
-                                    viewModel.refreshEntries()
+                        Button(action: {
+                            viewModel.refreshEntries()
                                     DispatchQueue.main.async {
                                         HapticFeedback.light()
                                     }
@@ -115,6 +115,11 @@ struct HomeView: View {
                     .background(Color.black.opacity(0.2)) // Subtle background for header section
                     .frame(height: 132) // Fixed total height (44 + 44 + 20 + padding)
                     
+                    // Add tag filtering section if there are tags
+                    if !viewModel.availableTags.isEmpty {
+                        TagsContainerView(viewModel: viewModel)
+                    }
+                    
                     // Content area
                     if viewModel.filteredEntries.isEmpty {
                         Spacer()
@@ -148,18 +153,18 @@ struct HomeView: View {
                     } else {
                         // Entries list - using List for proper swipe action support
                         List {
-                            ForEach(viewModel.filteredEntries) { entry in
+                                ForEach(viewModel.filteredEntries) { entry in
                                 ZStack {
                                     GlitchedEntryCard(entry: entry)
                                 }
                                 .contentShape(Rectangle())
-                                .onTapGesture { 
-                                    selectedEntry = entry 
-                                }
+                                        .onTapGesture {
+                                            selectedEntry = entry
+                                        }
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .frame(height: 140)
+                                .frame(height: entry.tags.isEmpty ? 140 : 160)
                                 .swipeActions(edge: .trailing) {
                                     Button(role: .destructive) {
                                         entryToDelete = entry.id
@@ -191,7 +196,7 @@ struct HomeView: View {
                                     .fill(GlitchTheme.glitchCyan)
                                     .frame(width: 60, height: 60)
                                 
-                                Image(systemName: "plus")
+                            Image(systemName: "plus")
                                     .font(.system(size: 24, weight: .bold))
                                     .foregroundColor(GlitchTheme.background)
                             }
@@ -224,7 +229,7 @@ struct HomeView: View {
                         }
                     }
                 } else {
-                    viewModel.refreshEntries()
+                viewModel.refreshEntries()
                 }
             }
             .sheet(isPresented: $showingNewEntryView, onDismiss: {
@@ -272,7 +277,25 @@ struct HomeView: View {
                     entryToDelete = nil
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    Button(action: {
+                        viewModel.toggleDecayTimeline()
+                    }) {
+                        Label("Memory Decay", systemImage: "chart.bar.fill")
+                    }
+                }
+            }
         }
+        .overlay(
+            Group {
+                if viewModel.showingDecayTimeline {
+                    DecayTimelineView(viewModel: viewModel)
+                        .transition(.move(edge: .bottom))
+                }
+            }
+            .animation(.spring(), value: viewModel.showingDecayTimeline)
+        )
     }
     
     // Simulate system boot sequence
@@ -498,19 +521,19 @@ struct GlitchedEntryCard: View {
                 Spacer()
                 
                 // Decay indicator
-                Circle()
+                    Circle()
                     .fill(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                    .frame(width: 12, height: 12)
+                        .frame(width: 12, height: 12)
             }
             .frame(height: 30)
             
             // Content preview - fixed height
-            Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
+                Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
                 .font(GlitchTheme.pixelFont(size: 14))
                 .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
-                .lineLimit(3)
-                .frame(height: 70, alignment: .top)
+                    .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                    .lineLimit(3)
+                .frame(height: 60, alignment: .top)
             
             // Info row - fixed height
             HStack {
@@ -527,6 +550,36 @@ struct GlitchedEntryCard: View {
                 }
             }
             .frame(height: 20)
+            
+            // Tags row - fixed height
+            if !entry.tags.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(Array(entry.tags.prefix(3)), id: \.self) { tag in
+                        Text(tag)
+                            .font(GlitchTheme.pixelFont(size: 9))
+                            .foregroundColor(GlitchTheme.glitchCyan.opacity(0.8))
+                            .lineLimit(1)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(GlitchTheme.fieldBackground.opacity(0.7))
+                            .cornerRadius(2)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 2)
+                                    .stroke(GlitchTheme.glitchCyan.opacity(0.4), lineWidth: 0.5)
+                            )
+                    }
+                    
+                    if entry.tags.count > 3 {
+                        Text("+\(entry.tags.count - 3)")
+                            .font(GlitchTheme.pixelFont(size: 9))
+                            .foregroundColor(GlitchTheme.glitchYellow)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.top, 4)
+                .frame(height: 20)
+            }
         }
         .padding(10)
         .background(GlitchTheme.cardBackground)
