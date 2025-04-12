@@ -172,6 +172,59 @@ struct EntryDetailView: View {
                                     .lineSpacing(6)
                                     .glitchBlocks(intensity: Double(entry.decayLevel) / 200)
                             }
+                            
+                            // Display attached photos if any
+                            if let entry = viewModel.entry, !entry.photoAttachments.isEmpty {
+                                VStack(alignment: .leading, spacing: 16) {
+                                    Text("MEMORY FRAGMENTS")
+                                        .font(.system(.headline, design: .monospaced))
+                                        .foregroundColor(.cyan)
+                                        .shadow(color: .cyan.opacity(0.8), radius: 2, x: 0, y: 0)
+                                        .padding(.top, 20)
+                                    
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        LazyHGrid(rows: [GridItem(.flexible())], spacing: 10) {
+                                            ForEach(Array(entry.photoAttachments.keys), id: \.self) { photoID in
+                                                if let photoURL = entry.photoAttachments[photoID] {
+                                                    SavedPhotoView(photoURL: photoURL)
+                                                }
+                                            }
+                                        }
+                                        .frame(height: 150)
+                                        .padding(.horizontal)
+                                    }
+                                }
+                                .id(entry.photoAttachments.count)
+                            }
+                            
+                            // Tags section
+                            if !entry.tags.isEmpty {
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("MEMORY CLASSIFICATION:")
+                                        .font(GlitchTheme.terminalFont(size: 12))
+                                        .foregroundColor(GlitchTheme.glitchYellow.opacity(0.7))
+                                        .padding(.top, 20)
+                                    
+                                    ScrollView(.horizontal, showsIndicators: false) {
+                                        HStack(spacing: 8) {
+                                            ForEach(entry.tags, id: \.self) { tag in
+                                                Text(tag)
+                                                    .font(GlitchTheme.pixelFont(size: 12))
+                                                    .foregroundColor(GlitchTheme.glitchCyan)
+                                                    .padding(.horizontal, 8)
+                                                    .padding(.vertical, 4)
+                                                    .background(GlitchTheme.cardBackground)
+                                                    .cornerRadius(4)
+                                                    .overlay(
+                                                        RoundedRectangle(cornerRadius: 4)
+                                                            .stroke(GlitchTheme.glitchCyan.opacity(0.6), lineWidth: 1)
+                                                    )
+                                            }
+                                        }
+                                        .padding(.vertical, 4)
+                                    }
+                                }
+                            }
                         }
                     }
                     .padding(.horizontal, 5)
@@ -189,7 +242,7 @@ struct EntryDetailView: View {
                 // Enhanced restore button
                 if let entry = viewModel.entry, entry.decayLevel > 10 {
                     Button(action: {
-                        viewModel.restoreEntry()
+                        viewModel.initiateRestoration()
                         
                         // Add glitch effect animation on restore
                         withAnimation(.easeInOut(duration: 0.3)) {
@@ -250,17 +303,100 @@ struct EntryDetailView: View {
         }
         .crtEffect(intensity: 1.0)
         .background(GlitchTheme.background.edgesIgnoringSafeArea(.all))
-        .sheet(isPresented: $showingEditView) {
+        .sheet(isPresented: $showingEditView, onDismiss: {
+            // Force reload the entry from the store after editing
+            if let entryId = viewModel.entry?.id {
+                // Find and update with the fresh entry from the store
+                if let index = viewModel.viewModelStore.entries.firstIndex(where: { $0.id == entryId }) {
+                    // Get updated entry from the store
+                    let updatedEntry = viewModel.viewModelStore.entries[index]
+                    
+                    // Replace our viewModel with a fresh one containing the updated entry
+                    DispatchQueue.main.async {
+                        viewModel.entry = updatedEntry
+                        viewModel.objectWillChange.send()
+                    }
+                }
+            }
+        }) {
             if let entry = viewModel.entry {
                 EntryEditView(store: viewModel.viewModelStore, entry: entry)
             }
         }
+        .id(viewModel.entry?.id.uuidString ?? "no-entry")
     }
     
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy.MM.dd HH:mm:ss"
         return formatter.string(from: date)
+    }
+}
+
+struct SavedPhotoView: View {
+    let photoURL: URL
+    @State private var image: UIImage? = nil
+    @State private var isPresented = false
+    @State private var loadAttempted = false
+    
+    var body: some View {
+        ZStack {
+            if let image = image {
+                Image(uiImage: image)
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+                    .frame(width: 120, height: 150)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.cyan.opacity(0.8), lineWidth: 2)
+                    )
+                    .shadow(color: .cyan.opacity(0.5), radius: 3, x: 0, y: 0)
+                    .onTapGesture {
+                        isPresented = true
+                    }
+            } else {
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(Color.black.opacity(0.3))
+                    .frame(width: 120, height: 150)
+                    .overlay(
+                        ProgressView()
+                            .tint(.cyan)
+                    )
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 6)
+                            .strokeBorder(Color.cyan.opacity(0.8), lineWidth: 2)
+                    )
+            }
+        }
+        .id(photoURL.lastPathComponent)
+        .onAppear {
+            loadImage()
+        }
+        .onChange(of: photoURL) { _ in
+            loadImage()
+        }
+        .fullScreenCover(isPresented: $isPresented) {
+            PhotoDetailView(photoURL: photoURL, isPresented: $isPresented)
+        }
+    }
+    
+    private func loadImage() {
+        if image != nil || loadAttempted {
+            return
+        }
+        
+        loadAttempted = true
+        
+        do {
+            let imageData = try Data(contentsOf: photoURL)
+            
+            DispatchQueue.main.async {
+                self.image = UIImage(data: imageData)
+            }
+        } catch {
+            // Handle error silently
+        }
     }
 }
 
