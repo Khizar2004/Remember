@@ -166,13 +166,14 @@ struct HomeView: View {
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
                                 .frame(height: entry.tags.isEmpty ? 140 : 160)
                                 .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
+                                    Button {
                                         entryToDelete = entry.id
                                         showingDeleteConfirmation = true
                                         HapticFeedback.light()
                                     } label: {
                                         Label("DELETE", systemImage: "trash")
                                     }
+                                    .tint(GlitchTheme.glitchRed)
                                 }
                             }
                         }
@@ -279,10 +280,18 @@ struct HomeView: View {
             }
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
-                    Button(action: {
-                        viewModel.toggleDecayTimeline()
-                    }) {
-                        Label("Memory Decay", systemImage: "chart.bar.fill")
+                    HStack {
+                        Button(action: {
+                            viewModel.toggleDecayTimeline()
+                        }) {
+                            Label("Memory Decay", systemImage: "chart.bar.fill")
+                        }
+                        
+                        Button(action: {
+                            viewModel.toggleAchievements()
+                        }) {
+                            Label("Achievements", systemImage: "trophy.fill")
+                        }
                     }
                 }
             }
@@ -293,9 +302,25 @@ struct HomeView: View {
                     DecayTimelineView(viewModel: viewModel)
                         .transition(.move(edge: .bottom))
                 }
+                
+                if viewModel.showingAchievements, let achievements = viewModel.userAchievements {
+                    AchievementsView(userAchievements: achievements)
+                        .transition(.move(edge: .bottom))
+                }
             }
             .animation(.spring(), value: viewModel.showingDecayTimeline)
+            .animation(.spring(), value: viewModel.showingAchievements)
         )
+        .sheet(item: $viewModel.selectedChallengeEntry) { entry in
+            let challenge = MemoryChallenge(entry: entry) { success in
+                if success {
+                    // Successfully restored the memory
+                    viewModel.store.restoreEntry(id: entry.id)
+                    HapticFeedback.success()
+                }
+            }
+            MemoryChallengeView(challenge: challenge)
+        }
     }
     
     // Simulate system boot sequence
@@ -512,11 +537,23 @@ struct GlitchedEntryCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Title row - fixed height
             HStack {
-                Text(entry.title)
-                    .font(GlitchTheme.terminalFont(size: 18))
-                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                    .lineLimit(1)
-                    .frame(height: 24)
+                if entry.decayLevel > 30 {
+                    // Use GlitchedText for higher decay levels to show decay effects
+                    GlitchedText(text: entry.title, 
+                                decayLevel: entry.decayLevel, 
+                                size: 18)
+                        .lineLimit(1)
+                        .frame(height: 24)
+                } else {
+                    // Use regular text for lower decay levels
+                    Text(entry.title)
+                        .font(GlitchTheme.terminalFont(size: 18))
+                        .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                        .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                        .blur(radius: TextDecayEffect.blurEffect(for: entry.decayLevel) * 0.5)
+                        .lineLimit(1)
+                        .frame(height: 24)
+                }
                 
                 Spacer()
                 

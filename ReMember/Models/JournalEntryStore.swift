@@ -15,6 +15,9 @@ class JournalEntryStore: ObservableObject {
     // Constants for decay threshold
     private let atRiskThreshold = 75 // Entries with decay level >= this value are considered at risk
     
+    // Create a reference to the user achievements tracker
+    private var userAchievements: UserAchievements?
+    
     init() {
         print("Initializing JournalEntryStore")
         container = NSPersistentContainer(name: "ReMember")
@@ -70,6 +73,9 @@ class JournalEntryStore: ObservableObject {
                 }
             }
         }
+        
+        // Initialize achievements tracker
+        self.userAchievements = UserAchievements(container: container)
     }
     
     // Creates directories for storing media attachments
@@ -133,6 +139,12 @@ class JournalEntryStore: ObservableObject {
                         }
                     }
                     
+                    // Extract custom questions
+                    var customQuestions: [MemoryQuestion] = []
+                    if let questionsData = entity.customQuestions {
+                        customQuestions = (try? JSONDecoder().decode([MemoryQuestion].self, from: questionsData)) ?? []
+                    }
+                    
                     return JournalEntry(
                         id: entity.id ?? UUID(),
                         title: entity.title ?? "Untitled",
@@ -141,7 +153,8 @@ class JournalEntryStore: ObservableObject {
                         lastRestoredDate: entity.lastRestoredDate,
                         decayLevel: Int(entity.decayLevel),
                         tags: extractedTags,
-                        photoAttachments: photoAttachments
+                        photoAttachments: photoAttachments,
+                        customQuestions: customQuestions
                     )
                 }
                 
@@ -166,7 +179,7 @@ class JournalEntryStore: ObservableObject {
         atRiskEntries = entries.filter { $0.decayLevel >= atRiskThreshold }
     }
     
-    func addEntry(title: String, content: String, tags: [String] = [], photoAttachments: [UUID: URL] = [:]) {
+    func addEntry(title: String, content: String, tags: [String] = [], photoAttachments: [UUID: URL] = [:], customQuestions: [MemoryQuestion] = []) {
         print("Adding new entry with title: \(title)")
         
         guard isStoreLoaded else {
@@ -198,78 +211,139 @@ class JournalEntryStore: ObservableObject {
             }
         }
         
+        // Store custom questions as JSON data
+        if !customQuestions.isEmpty {
+            if let questionsData = try? JSONEncoder().encode(customQuestions) {
+                newEntry.customQuestions = questionsData
+            }
+        }
+        
+        // Save to Core Data
         saveContext()
         
-        // Force a refresh of entries to ensure UI updates
-        loadEntries()
+        // Also add to our in-memory array
+        let entry = JournalEntry(
+            id: newEntry.id ?? UUID(),
+            title: title,
+            content: content,
+            creationDate: Date(),
+            decayLevel: 0,
+            tags: tags,
+            photoAttachments: photoAttachments,
+            customQuestions: customQuestions
+        )
+        
+        DispatchQueue.main.async {
+            // Add to the beginning of the array since it's the newest
+            self.entries.insert(entry, at: 0)
+            
+            // Force view update
+            self.objectWillChange.send()
+        }
     }
     
     func updateEntry(_ entry: JournalEntry) {
-        guard isStoreLoaded else {
-            print("Cannot update entry - store not ready")
-            return
-        }
-        
+        // Find the entry in Core Data
         let request = NSFetchRequest<JournalEntryEntity>(entityName: "JournalEntryEntity")
         request.predicate = NSPredicate(format: "id == %@", entry.id as CVarArg)
         
         do {
             let results = try container.viewContext.fetch(request)
-            if let entityToUpdate = results.first {
-                entityToUpdate.title = entry.title
-                entityToUpdate.content = entry.content
-                entityToUpdate.lastRestoredDate = entry.lastRestoredDate
-                entityToUpdate.decayLevel = Int16(entry.decayLevel)
+            if let entity = results.first {
+                // Update the entity
+                entity.title = entry.title
+                entity.content = entry.content
+                // Don't update creation date
+                // Don't update decay level directly - it's calculated
                 
-                // Store tags as JSON data
+                // Store tags as JSON
                 if let tagsData = try? JSONEncoder().encode(entry.tags) {
-                    entityToUpdate.tags = tagsData
+                    entity.tags = tagsData
                 }
                 
-                // Store photo attachments as JSON data - improved
+                // Store photo attachments as JSON
                 if !entry.photoAttachments.isEmpty {
                     var photoDict: [String: String] = [:]
                     for (key, value) in entry.photoAttachments {
-                        // Store only the filename component, not the full path
                         photoDict[key.uuidString] = value.lastPathComponent
                     }
                     if let photoData = try? JSONEncoder().encode(photoDict) {
-                        entityToUpdate.photoAttachments = photoData
+                        entity.photoAttachments = photoData
                     }
-                } else {
-                    entityToUpdate.photoAttachments = nil
                 }
                 
-                // Save context immediately
-                saveContext()
+                // Store custom questions as JSON
+                if let questionsData = try? JSONEncoder().encode(entry.customQuestions) {
+                    entity.customQuestions = questionsData
+                }
                 
-                // Update entries array directly to ensure proper UI updates
+                try container.viewContext.save()
+                
+                // Update the entry in our local array
                 if let index = entries.firstIndex(where: { $0.id == entry.id }) {
-                    DispatchQueue.main.async {
-                        // Replace the entry in the array with the updated one
-                        self.entries[index] = entry
-                        
-                        // Force UI refresh 
-                        self.objectWillChange.send()
-                    }
+                    entries[index] = entry
                 }
                 
-                // Also reload entries to ensure consistency
-                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                    self.loadEntries()
-                }
+                // Update at-risk entries
+                updateAtRiskEntries()
+                
+                // Signal that the entries have changed
+                objectWillChange.send()
+                
+                print("Entry updated successfully")
+            } else {
+                print("Failed to find entry in Core Data")
             }
         } catch {
             print("Failed to update entry: \(error.localizedDescription)")
         }
     }
     
+    // Restore an entry from decay
     func restoreEntry(id: UUID) {
+        print("Restoring entry with ID: \(id)")
+        
+        // Find the entry in our local array first
         if let index = entries.firstIndex(where: { $0.id == id }) {
-            var entryToRestore = entries[index]
-            entryToRestore.restore()
-            updateEntry(entryToRestore)
+            var entry = entries[index]
+            
+            // Restore entry in memory
+            entry.restore()
+            entries[index] = entry
+            
+            // Update at-risk entries
+            updateAtRiskEntries()
+            
+            // Update in Core Data
+            let request = NSFetchRequest<JournalEntryEntity>(entityName: "JournalEntryEntity")
+            request.predicate = NSPredicate(format: "id == %@", id as CVarArg)
+            
+            do {
+                let results = try container.viewContext.fetch(request)
+                if let entity = results.first {
+                    entity.lastRestoredDate = Date()
+                    entity.decayLevel = 0
+                    
+                    try container.viewContext.save()
+                    print("Entry restored successfully")
+                    
+                    // Track successful memory restoration with the achievements system
+                    userAchievements?.trackCompletedChallenge(success: true)
+                    
+                    // Force view update
+                    objectWillChange.send()
+                } else {
+                    print("Failed to find entry in Core Data")
+                }
+            } catch {
+                print("Failed to restore entry: \(error.localizedDescription)")
+            }
         }
+    }
+    
+    // Get user achievements tracker
+    func getUserAchievements() -> UserAchievements? {
+        return userAchievements
     }
     
     func deleteEntry(id: UUID) {

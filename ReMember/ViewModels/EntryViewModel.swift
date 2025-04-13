@@ -12,9 +12,13 @@ class EntryViewModel: ObservableObject {
     @Published var restorationProgress: Double = 0.0
     @Published var entrySaved: Bool = false
     @Published var newTagText: String = ""
+    @Published var showingMemoryChallenge: Bool = false
     
     // Media attachment properties
     @Published var photoAttachments: [UUID: URL] = [:]
+    
+    // Temporary storage for custom questions when creating a new entry
+    @Published var customQuestionsForNewEntry: [MemoryQuestion] = []
     
     private let store: JournalEntryStore
     private var restorationTimer: Timer?
@@ -49,6 +53,8 @@ class EntryViewModel: ObservableObject {
             updatedEntry.content = content
             updatedEntry.tags = tags
             updatedEntry.photoAttachments = photoAttachments
+            // Make sure we preserve customQuestions from the entry object
+            // customQuestions are updated in the Entry object separately before this call
             store.updateEntry(updatedEntry)
             
             // Update the entry reference to trigger UI updates
@@ -67,7 +73,8 @@ class EntryViewModel: ObservableObject {
                 title: title,
                 content: content,
                 tags: tags,
-                photoAttachments: photoAttachments
+                photoAttachments: photoAttachments,
+                customQuestions: customQuestionsForNewEntry
             )
         }
         
@@ -84,6 +91,7 @@ class EntryViewModel: ObservableObject {
             tags = []
             newTagText = ""
             photoAttachments = [:]
+            customQuestionsForNewEntry = []
         }
     }
     
@@ -195,5 +203,25 @@ class EntryViewModel: ObservableObject {
     // Add this method to make the loadEntries functionality accessible without exposing store directly
     func reloadEntries() {
         store.loadEntries()
+    }
+    
+    // Start a memory challenge for this entry
+    func startMemoryChallenge() {
+        showingMemoryChallenge = true
+    }
+    
+    // Restore memory after successful challenge
+    func restoreMemory() {
+        guard let entryToRestore = entry else { return }
+        
+        // Restore memory in the store
+        store.restoreEntry(id: entryToRestore.id)
+        
+        // Update local entry reference
+        if let index = store.entries.firstIndex(where: { $0.id == entryToRestore.id }) {
+            self.entry = store.entries[index]
+            // Force UI refresh
+            self.objectWillChange.send()
+        }
     }
 } 
