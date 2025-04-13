@@ -310,16 +310,19 @@ struct GlitchedText: View {
                 // Only apply glitch effects for moderate to heavy decay
                 if validDecayLevel > 40 {
                     // Create a deterministic but random-looking jitter
-                    let seed = abs((text.hashValue + id.hashValue) % 1000)
-                    let magnitude = decayFactor * 3.0
+                    // Fix for arithmetic overflow - use safer calculations
+                    let textHash = abs(text.prefix(20).hashValue) // Limit the text length to prevent massive hash values
+                    let idHash = abs(id.hashValue)
+                    let seed = (textHash % 500) + (idHash % 500) // Avoid potential overflow by using smaller values
+                    let magnitude = min(decayFactor * 3.0, 3.0) // Cap the magnitude
                     
-                    // Fixed offsets based on the seed
-                    let xOffset = (Double(seed % 7) - 3.0) * magnitude 
-                    let yOffset = (Double(seed % 5) - 2.0) * magnitude
+                    // Fixed offsets based on the seed with safer calculations
+                    let xOffset = min(max((Double(seed % 7) - 3.0), -3.0), 3.0) * magnitude 
+                    let yOffset = min(max((Double(seed % 5) - 2.0), -3.0), 3.0) * magnitude
                     
-                    // Ensure values are valid
-                    let safeXOffset = xOffset.isFinite ? xOffset : 0.0
-                    let safeYOffset = yOffset.isFinite ? yOffset : 0.0
+                    // Additional safeguard against invalid values
+                    let safeXOffset = xOffset.isFinite && !xOffset.isNaN ? xOffset : 0.0
+                    let safeYOffset = yOffset.isFinite && !yOffset.isNaN ? yOffset : 0.0
                     
                     // Apply jitter animation for heavily degraded text
                     if decayFactor > 0.6 {
@@ -346,6 +349,7 @@ struct EnhancedRestorationView: View {
     @State private var glitchBlocks: [GlitchBlock] = []
     @State private var showScanPulse = false
     @State private var dataMatrix: [[Bool]] = Array(repeating: Array(repeating: false, count: 20), count: 20)
+    @State private var lastProgressUpdate: Double = 0
     
     struct GlitchBlock: Identifiable {
         let id = UUID()
@@ -370,20 +374,10 @@ struct EnhancedRestorationView: View {
                 ForEach(0..<20, id: \.self) { row in
                     HStack(spacing: 3) {
                         ForEach(0..<20, id: \.self) { column in
-                            let shouldBeRestored = Double((row * 20) + column) / 400.0 <= safeProgress
-                            let isRestored = dataMatrix[row][column]
-                            
                             Rectangle()
-                                .fill(isRestored ? GlitchTheme.glitchCyan : GlitchTheme.cardBackground)
+                                .fill(dataMatrix[row][column] ? GlitchTheme.glitchCyan : GlitchTheme.cardBackground)
                                 .frame(width: 12, height: 12)
-                                .brightness(isRestored && row % 2 == 0 ? 0.1 : 0)
-                                .onChange(of: safeProgress) { _ in
-                                    if shouldBeRestored && !isRestored {
-                                        withAnimation(.easeInOut(duration: 0.1)) {
-                                            dataMatrix[row][column] = true
-                                        }
-                                    }
-                                }
+                                .brightness(dataMatrix[row][column] && row % 2 == 0 ? 0.1 : 0)
                         }
                     }
                 }
@@ -465,9 +459,20 @@ struct EnhancedRestorationView: View {
                     .blur(radius: 3)
             }
         }
+        .onChange(of: safeProgress) { newProgress in
+            // Only update if progress has changed significantly to avoid too many updates
+            if abs(newProgress - lastProgressUpdate) >= 0.02 {
+                updateDataMatrix(for: newProgress)
+                lastProgressUpdate = newProgress
+            }
+        }
         .onAppear {
             // Initialize empty data matrix
             dataMatrix = Array(repeating: Array(repeating: false, count: 20), count: 20)
+            lastProgressUpdate = 0
+            
+            // Initial matrix update
+            updateDataMatrix(for: safeProgress)
             
             // Create the scan line animation
             withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
@@ -498,6 +503,24 @@ struct EnhancedRestorationView: View {
                         }
                     }
                 }
+        }
+    }
+    
+    // Update the entire data matrix at once based on current progress
+    private func updateDataMatrix(for progress: Double) {
+        // Update entire matrix in a single animation
+        withAnimation(.easeInOut(duration: 0.1)) {
+            for row in 0..<20 {
+                for column in 0..<20 {
+                    let cellIndex = (row * 20) + column
+                    let shouldBeRestored = Double(cellIndex) / 400.0 <= progress
+                    
+                    // Only update if needed to minimize state changes
+                    if dataMatrix[row][column] != shouldBeRestored {
+                        dataMatrix[row][column] = shouldBeRestored
+                    }
+                }
+            }
         }
     }
     

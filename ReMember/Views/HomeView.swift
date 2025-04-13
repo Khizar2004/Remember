@@ -528,12 +528,24 @@ struct GlitchedEntryCard: View {
             .frame(height: 30)
             
             // Content preview - fixed height
-                Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
-                .font(GlitchTheme.pixelFont(size: 14))
-                .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                    .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+            if entry.decayLevel > 30 {
+                // Use GlitchedText for higher decay levels to show decay effects
+                GlitchedText(text: entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content, 
+                             decayLevel: entry.decayLevel, 
+                             size: 14)
                     .lineLimit(3)
-                .frame(height: 60, alignment: .top)
+                    .frame(height: 60, alignment: .top)
+                    .glitchBlocks(intensity: Double(entry.decayLevel) / 200)
+            } else {
+                // Use regular text for lower decay levels
+                Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
+                    .font(GlitchTheme.pixelFont(size: 14))
+                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                    .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                    .blur(radius: TextDecayEffect.blurEffect(for: entry.decayLevel) * 0.5)
+                    .lineLimit(3)
+                    .frame(height: 60, alignment: .top)
+            }
             
             // Info row - fixed height
             HStack {
@@ -542,6 +554,41 @@ struct GlitchedEntryCard: View {
                     .foregroundColor(GlitchTheme.glitchYellow)
                 
                 Spacer()
+                
+                // Show indicator for photo attachments
+                if !entry.photoAttachments.isEmpty {
+                    let decayFactor = min(max(Double(entry.decayLevel), 0), 100) / 100.0
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 10))
+                            .foregroundColor(
+                                entry.decayLevel > 50 ? 
+                                Color.red.opacity(0.8) : 
+                                GlitchTheme.glitchCyan.opacity(0.8)
+                            )
+                            // Apply decay effects to the photo icon
+                            .opacity(max(1.0 - (decayFactor * 0.5), 0.5))
+                            .blur(radius: decayFactor > 0.5 ? min(decayFactor * 1.5, 1.5) : 0)
+                            .digitalNoise(intensity: min(decayFactor * 0.5, 0.5))
+                        
+                        Text("\(entry.photoAttachments.count)")
+                            .font(GlitchTheme.pixelFont(size: 10))
+                            .foregroundColor(
+                                entry.decayLevel > 50 ? 
+                                Color.red.opacity(0.7) : 
+                                GlitchTheme.glitchCyan
+                            )
+                            // Apply text decay effects
+                            .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(GlitchTheme.fieldBackground.opacity(0.3))
+                    .cornerRadius(4)
+                    
+                    Spacer().frame(width: 8)
+                }
                 
                 if let restored = entry.lastRestoredDate {
                     Text("RESTORED: \(formattedDate(restored))")
@@ -589,7 +636,8 @@ struct GlitchedEntryCard: View {
                 .stroke(GlitchTheme.colorForDecayLevel(entry.decayLevel).opacity(0.3), lineWidth: 1)
         )
         .opacity(isDeleting ? 0.0 : 1.0)
-        .rgbSplit(amount: isDeleting ? 6.0 : 0.0, angle: 90)
+        .rgbSplit(amount: isDeleting ? 6.0 : min(CGFloat(entry.decayLevel) / 100, 2.0), angle: 90)
+        .digitalNoise(intensity: min(Double(entry.decayLevel) / 200, 0.2))
     }
     
     private func formattedDate(_ date: Date) -> String {
