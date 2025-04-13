@@ -1,6 +1,19 @@
 import Foundation
 import SwiftUI
 
+// Custom question structure
+struct MemoryQuestion: Identifiable, Codable {
+    let id: UUID
+    var question: String
+    var answer: String
+    
+    init(id: UUID = UUID(), question: String, answer: String) {
+        self.id = id
+        self.question = question
+        self.answer = answer
+    }
+}
+
 struct JournalEntry: Identifiable {
     let id: UUID
     var title: String
@@ -10,8 +23,9 @@ struct JournalEntry: Identifiable {
     var decayLevel: Int // 0-100, where 100 is completely decayed
     var tags: [String] = []
     var photoAttachments: [UUID: URL] = [:] // Store photo URLs keyed by UUID
+    var customQuestions: [MemoryQuestion] = [] // Custom memory questions
     
-    init(id: UUID = UUID(), title: String, content: String, creationDate: Date = Date(), lastRestoredDate: Date? = nil, decayLevel: Int = 0, tags: [String] = [], photoAttachments: [UUID: URL] = [:]) {
+    init(id: UUID = UUID(), title: String, content: String, creationDate: Date = Date(), lastRestoredDate: Date? = nil, decayLevel: Int = 0, tags: [String] = [], photoAttachments: [UUID: URL] = [:], customQuestions: [MemoryQuestion] = []) {
         self.id = id
         self.title = title
         self.content = content
@@ -20,16 +34,17 @@ struct JournalEntry: Identifiable {
         self.decayLevel = decayLevel
         self.tags = tags
         self.photoAttachments = photoAttachments
+        self.customQuestions = customQuestions
     }
     
     mutating func calculateDecay() {
-        // Calculate decay based on time passed in days
+        // Calculate decay based on time passed in minutes (instead of days)
         let calendar = Calendar.current
         let now = Date()
-        let daysSinceCreation = calendar.dateComponents([.day], from: lastRestoredDate ?? creationDate, to: now).day ?? 0
+        let minutesSinceCreation = calendar.dateComponents([.minute], from: lastRestoredDate ?? creationDate, to: now).minute ?? 0
         
-        // Decay by 5 points per day 
-        decayLevel = min(daysSinceCreation * 5, 100)
+        // Decay by 5 points per minute (for testing) 
+        decayLevel = min(minutesSinceCreation * 5, 100)
     }
     
     mutating func restore() {
@@ -55,5 +70,19 @@ struct JournalEntry: Identifiable {
     
     mutating func removePhotoAttachment(id: UUID) {
         photoAttachments.removeValue(forKey: id)
+    }
+    
+    mutating func addQuestion(question: String, answer: String) {
+        let newQuestion = MemoryQuestion(question: question, answer: answer)
+        customQuestions.append(newQuestion)
+    }
+    
+    mutating func removeQuestion(id: UUID) {
+        customQuestions.removeAll { $0.id == id }
+    }
+    
+    // Check if this memory has protection questions
+    var hasProtectionQuestions: Bool {
+        return !customQuestions.isEmpty
     }
 } 

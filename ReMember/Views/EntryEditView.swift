@@ -6,9 +6,15 @@ struct EntryEditView: View {
     @State private var cursorVisible = true
     @State private var randomGlitches = false
     @State private var hasBeenDismissed = false
+    @State private var customQuestions: [MemoryQuestion] = []
     
     init(store: JournalEntryStore, entry: JournalEntry? = nil) {
         _viewModel = StateObject(wrappedValue: EntryViewModel(store: store, entry: entry))
+        
+        // Initialize customQuestions from the entry if present
+        if let existingEntry = entry {
+            self._customQuestions = State(initialValue: existingEntry.customQuestions)
+        }
     }
     
     var body: some View {
@@ -60,6 +66,17 @@ struct EntryEditView: View {
                     
                     // Save button with terminal styling
                     Button(action: {
+                        // Update viewModel with customQuestions before saving
+                        if let existingEntry = viewModel.entry {
+                            var updatedEntry = existingEntry
+                            updatedEntry.customQuestions = customQuestions
+                            viewModel.entry = updatedEntry
+                        } else {
+                            // For new entries, we need to pass the custom questions differently
+                            // Store them temporarily in the viewModel
+                            viewModel.customQuestionsForNewEntry = customQuestions
+                        }
+                        
                         viewModel.saveEntry()
                         
                         // Ensure parent view is fully refreshed
@@ -292,6 +309,88 @@ struct EntryEditView: View {
                             }
                         }
                         .padding(.vertical, 20)
+                        
+                        // Protection Questions Section
+                        VStack(alignment: .leading, spacing: 10) {
+                            HStack {
+                                Text("PROTECTION QUESTIONS")
+                                    .font(GlitchTheme.terminalFont(size: 14))
+                                    .foregroundColor(GlitchTheme.glitchCyan)
+                                
+                                Spacer()
+                                
+                                Text("(OPTIONAL)")
+                                    .font(GlitchTheme.terminalFont(size: 10))
+                                    .foregroundColor(GlitchTheme.terminalGreen.opacity(0.7))
+                            }
+                            
+                            Text("Add questions to protect this memory. You'll need to answer them to restore the memory if it decays.")
+                                .font(GlitchTheme.terminalFont(size: 12))
+                                .foregroundColor(GlitchTheme.terminalGreen.opacity(0.7))
+                                .padding(.bottom, 5)
+                            
+                            // List existing questions
+                            ForEach(customQuestions.indices, id: \.self) { index in
+                                HStack(alignment: .top, spacing: 10) {
+                                    VStack(alignment: .leading, spacing: 8) {
+                                        TextField("Question", text: $customQuestions[index].question)
+                                            .font(GlitchTheme.terminalFont(size: 14))
+                                            .foregroundColor(GlitchTheme.terminalGreen)
+                                            .autocapitalization(.none)
+                                        
+                                        TextField("Answer", text: $customQuestions[index].answer)
+                                            .font(GlitchTheme.terminalFont(size: 14))
+                                            .foregroundColor(GlitchTheme.terminalGreen)
+                                            .autocapitalization(.none)
+                                    }
+                                    .padding(.vertical, 8)
+                                    .padding(.horizontal, 12)
+                                    .background(GlitchTheme.fieldBackground)
+                                    .cornerRadius(8)
+                                    
+                                    Button(action: {
+                                        withAnimation {
+                                            if index < customQuestions.count {
+                                                customQuestions.remove(at: index)
+                                            }
+                                        }
+                                    }) {
+                                        Image(systemName: "minus.circle.fill")
+                                            .foregroundColor(GlitchTheme.glitchRed)
+                                            .font(.system(size: 20))
+                                    }
+                                }
+                            }
+                            
+                            // Add new question button
+                            Button(action: {
+                                withAnimation {
+                                    let newQuestion = MemoryQuestion(question: "", answer: "")
+                                    customQuestions.append(newQuestion)
+                                }
+                            }) {
+                                HStack {
+                                    Image(systemName: "plus.circle.fill")
+                                        .font(.system(size: 16))
+                                    Text("ADD QUESTION")
+                                        .font(GlitchTheme.terminalFont(size: 14))
+                                }
+                                .padding(.vertical, 8)
+                                .padding(.horizontal, 12)
+                                .foregroundColor(GlitchTheme.glitchCyan)
+                                .background(GlitchTheme.fieldBackground)
+                                .cornerRadius(4)
+                                .overlay(
+                                    RoundedRectangle(cornerRadius: 4)
+                                        .stroke(GlitchTheme.glitchCyan.opacity(0.5), lineWidth: 1)
+                                )
+                            }
+                        }
+                        .padding(.vertical, 10)
+                        .background(GlitchTheme.cardBackground)
+                        .cornerRadius(8)
+                        .padding(.bottom, 20)
+                        .padding(.horizontal)
                         
                         // System info display
                         HStack {

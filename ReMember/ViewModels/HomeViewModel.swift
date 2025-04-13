@@ -11,6 +11,8 @@ class HomeViewModel: ObservableObject {
     @Published var selectedTags: [String] = []
     @Published var showingDecayTimeline = false // Control for showing decay timeline
     @Published var notificationsAuthorized = false // Track if notifications are authorized
+    @Published var showingAchievements = false // Control for showing achievements view
+    @Published var selectedChallengeEntry: JournalEntry? // Entry selected for challenge
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -67,6 +69,11 @@ class HomeViewModel: ObservableObject {
         }
         
         return result
+    }
+    
+    // Access the UserAchievements instance
+    var userAchievements: UserAchievements? {
+        return store.getUserAchievements()
     }
     
     init(store: JournalEntryStore = JournalEntryStore()) {
@@ -177,34 +184,71 @@ class HomeViewModel: ObservableObject {
         // Clear existing notifications
         center.removeAllPendingNotificationRequests()
         
-        // Create a notification for each at-risk entry
-        for entry in entries {
-            let content = UNMutableNotificationContent()
-            content.title = "Memory at Risk of Decay"
-            content.body = "Your memory '\(entry.title)' is fading. Restore it soon to preserve it."
-            content.sound = .default
-            
-            // Create a trigger that fires immediately
-            let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
-            
-            // Create the request
-            let request = UNNotificationRequest(
-                identifier: entry.id.uuidString,
-                content: content,
-                trigger: trigger
-            )
-            
-            // Add the request to the notification center
-            center.add(request) { error in
-                if let error = error {
-                    print("Error scheduling notification: \(error)")
-                }
+        // Track when we last notified for each entry
+        let defaults = UserDefaults.standard
+        let lastNotificationTimeKey = "lastNotificationTime"
+        let currentTime = Date().timeIntervalSince1970
+        
+        // Only notify once per hour at most
+        let notificationThrottleInterval: TimeInterval = 3600 // 1 hour in seconds
+        let lastNotificationTime = defaults.double(forKey: lastNotificationTimeKey)
+        
+        // Skip if we've notified recently
+        if currentTime - lastNotificationTime < notificationThrottleInterval {
+            return
+        }
+        
+        // Filter to avoid notifying for completely decayed memories (100%)
+        let notifiableEntries = entries.filter { $0.decayLevel >= 50 && $0.decayLevel < 100 }
+        
+        // Don't notify if no entries in the proper decay range
+        guard !notifiableEntries.isEmpty else { return }
+        
+        // Create a single grouped notification instead of one per entry
+        let content = UNMutableNotificationContent()
+        content.title = "Memories at Risk"
+        
+        if notifiableEntries.count == 1 {
+            let entry = notifiableEntries[0]
+            content.body = "Your memory '\(entry.title)' is fading. Restore it soon."
+        } else {
+            content.body = "\(notifiableEntries.count) memories are at risk of fading. Restore them soon."
+        }
+        content.sound = .default
+        
+        // Create a trigger that fires immediately
+        let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
+        
+        // Create the request with a unique identifier
+        let request = UNNotificationRequest(
+            identifier: "memory-decay-\(UUID().uuidString)",
+            content: content,
+            trigger: trigger
+        )
+        
+        // Add the request to the notification center
+        center.add(request) { error in
+            if let error = error {
+                print("Error scheduling notification: \(error)")
+            } else {
+                // Update the last notification time
+                defaults.set(currentTime, forKey: lastNotificationTimeKey)
             }
         }
     }
     
     func toggleDecayTimeline() {
         showingDecayTimeline.toggle()
+    }
+    
+    // Toggle achievements view
+    func toggleAchievements() {
+        showingAchievements.toggle()
+    }
+    
+    // Start a memory challenge for an entry
+    func startMemoryChallenge(for entry: JournalEntry) {
+        selectedChallengeEntry = entry
     }
 }
 
