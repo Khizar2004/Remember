@@ -90,7 +90,7 @@ class HomeViewModel: ObservableObject {
             .store(in: &cancellables)
         
         // Update decay levels periodically
-        Timer.publish(every: 300, on: .main, in: .common) // Every 5 minutes
+        Timer.publish(every: 15, on: .main, in: .common) // Every 15 seconds
             .autoconnect()
             .sink { [weak self] _ in
                 print("Timer triggered refresh")

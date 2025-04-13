@@ -138,10 +138,14 @@ struct PhotoThumbnailView: View {
 struct PhotoDetailView: View {
     let photoURL: URL
     @Binding var isPresented: Bool
+    var decayLevel: Int = 0
     @State private var scale: CGFloat = 1.0
     @State private var image: UIImage? = nil
     
     var body: some View {
+        // Calculate decay factor
+        let decayFactor = min(max(Double(decayLevel), 0), 100) / 100.0
+        
         ZStack {
             Color.black.edgesIgnoringSafeArea(.all)
             
@@ -150,6 +154,48 @@ struct PhotoDetailView: View {
                     .resizable()
                     .aspectRatio(contentMode: .fit)
                     .scaleEffect(scale)
+                    // Apply decay effects to full screen view - intensify for high corruption
+                    .opacity(max(1.0 - (decayFactor * 0.5), 0.5)) // More aggressive opacity reduction
+                    .blur(radius: decayFactor > 0.5 ? min(decayFactor * 5.0, 5.0) : 0) // Much stronger blur for high decay
+                    .contrast(max(1.0 - (decayFactor * 0.7), 0.3)) // More aggressive contrast reduction
+                    .saturation(max(1.0 - (decayFactor * 0.8), 0.2)) // Almost grayscale at high decay
+                    .rgbSplit(amount: decayFactor > 0.3 ? min(CGFloat(decayFactor * 8), 8) : 0, angle: 90) // Much stronger RGB split
+                    .digitalNoise(intensity: min(decayFactor * 0.8, 0.8)) // Stronger noise
+                    // Add glitch blocks overlay for heavily corrupted images
+                    .overlay(
+                        Group {
+                            if decayFactor > 0.7 {
+                                ZStack {
+                                    // Random glitch rectangles
+                                    ForEach(0..<Int(decayFactor * 10), id: \.self) { _ in
+                                        Rectangle()
+                                            .fill(Color.cyan.opacity(0.3))
+                                            .frame(
+                                                width: CGFloat.random(in: 10...100),
+                                                height: CGFloat.random(in: 5...30)
+                                            )
+                                            .offset(
+                                                x: CGFloat.random(in: -150...150),
+                                                y: CGFloat.random(in: -200...200)
+                                            )
+                                            .blendMode(.difference)
+                                    }
+                                    
+                                    // Add horizontal scan lines for severe corruption
+                                    if decayFactor > 0.9 {
+                                        VStack(spacing: 4) {
+                                            ForEach(0..<15, id: \.self) { _ in
+                                                Rectangle()
+                                                    .fill(Color.white.opacity(0.15))
+                                                    .frame(height: 1)
+                                            }
+                                        }
+                                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    }
+                                }
+                            }
+                        }
+                    )
                     .gesture(
                         MagnificationGesture()
                             .onChanged { value in
@@ -158,7 +204,7 @@ struct PhotoDetailView: View {
                     )
             } else {
                 ProgressView()
-                    .tint(.cyan)
+                    .tint(GlitchTheme.colorForDecayLevel(decayLevel))
             }
             
             VStack {
@@ -169,20 +215,41 @@ struct PhotoDetailView: View {
                         isPresented = false
                     }) {
                         Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundColor(.cyan)
-                            .shadow(color: .cyan.opacity(0.6), radius: 3, x: 0, y: 0)
+                            .font(.system(size: 30))
+                            .foregroundColor(.red)
+                            .shadow(color: GlitchTheme.colorForDecayLevel(decayLevel).opacity(0.6), radius: 3, x: 0, y: 0)
+                            .padding(20) // Increase padding to create larger tap target
                     }
-                    .padding()
+                    .buttonStyle(PlainButtonStyle()) // Ensure button styling doesn't interfere with taps
+                    .contentShape(Rectangle()) // Ensure entire area is tappable
                 }
                 
                 Spacer()
+                
+                // Add memory corruption indicator for highly degraded images
+                if decayLevel > 50 {
+                    Text("MEMORY CORRUPTION: \(decayLevel)%")
+                        .font(GlitchTheme.terminalFont(size: 16))
+                        .foregroundColor(.red)
+                        .padding(8)
+                        .background(Color.black.opacity(0.6))
+                        .cornerRadius(4)
+                        .padding(.bottom, 20)
+                        .glitchBlocks(intensity: min(decayFactor * 0.6, 0.6))
+                }
             }
         }
         .id(photoURL.lastPathComponent) // Ensure unique identity
         .onAppear {
             // Force immediate load on appear
             loadImageImmediate()
+        }
+        // Add overall glitch effect for higher decay levels - intensify for high corruption
+        .modifier(GlitchTheme.NoiseModifier(intensity: min(decayFactor * 0.8, 0.8)))
+        .screenFlicker(intensity: min(decayFactor * 0.6, 0.6))
+        // Add a second dismiss gesture as a backup escape method
+        .onTapGesture(count: 2) {
+            isPresented = false
         }
     }
     

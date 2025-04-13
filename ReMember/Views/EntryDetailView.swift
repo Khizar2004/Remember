@@ -7,6 +7,10 @@ struct EntryDetailView: View {
     @State private var showingEditView = false
     @State private var cancellables = Set<AnyCancellable>()
     @State private var glitchIntensity = 0.0
+    @State private var showingEditWarning = false
+    
+    // Define decay threshold beyond which editing is disallowed
+    private let editDecayThreshold = 70
     
     init(store: JournalEntryStore, entry: JournalEntry) {
         _viewModel = StateObject(wrappedValue: EntryViewModel(store: store, entry: entry))
@@ -56,7 +60,13 @@ struct EntryDetailView: View {
                     
                     // Edit button with terminal styling
                     Button(action: {
-                        showingEditView = true
+                        if let entry = viewModel.entry, entry.decayLevel > editDecayThreshold {
+                            // Show warning for heavily decayed memories
+                            showingEditWarning = true
+                        } else {
+                            // Allow editing for less decayed memories
+                            showingEditView = true
+                        }
                     }) {
                         HStack(spacing: 8) {
                             Image(systemName: "pencil")
@@ -186,7 +196,7 @@ struct EntryDetailView: View {
                                         LazyHGrid(rows: [GridItem(.flexible())], spacing: 10) {
                                             ForEach(Array(entry.photoAttachments.keys), id: \.self) { photoID in
                                                 if let photoURL = entry.photoAttachments[photoID] {
-                                                    SavedPhotoView(photoURL: photoURL)
+                                                    SavedPhotoView(photoURL: photoURL, decayLevel: entry.decayLevel)
                                                 }
                                             }
                                         }
@@ -324,6 +334,33 @@ struct EntryDetailView: View {
             }
         }
         .id(viewModel.entry?.id.uuidString ?? "no-entry")
+        // Add warning alert for heavily corrupted memories
+        .alert(isPresented: $showingEditWarning) {
+            Alert(
+                title: Text("MEMORY CORRUPTION CRITICAL"),
+                message: Text("Memory fragment too degraded for modification. Stability below acceptable parameters.\n\nDefragment memory to restore edit access."),
+                primaryButton: .default(Text("UNDERSTOOD")) {
+                    showingEditWarning = false
+                },
+                secondaryButton: .cancel(Text("DEFRAGMENT")) {
+                    // Initiate defragmentation when chosen
+                    showingEditWarning = false
+                    viewModel.initiateRestoration()
+                    
+                    // Add glitch effect animation on restore
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        glitchIntensity = 3.0
+                    }
+                    
+                    // Return to normal after animation
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        withAnimation(.easeOut(duration: 0.5)) {
+                            glitchIntensity = 0.0
+                        }
+                    }
+                }
+            )
+        }
     }
     
     private func formattedDate(_ date: Date) -> String {
@@ -338,8 +375,12 @@ struct SavedPhotoView: View {
     @State private var image: UIImage? = nil
     @State private var isPresented = false
     @State private var loadAttempted = false
+    var decayLevel: Int = 0
     
     var body: some View {
+        // Calculate safe decay factor
+        let decayFactor = min(max(Double(decayLevel), 0), 100) / 100.0
+        
         ZStack {
             if let image = image {
                 Image(uiImage: image)
@@ -347,11 +388,58 @@ struct SavedPhotoView: View {
                     .aspectRatio(contentMode: .fill)
                     .frame(width: 120, height: 150)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
+                    // Apply stronger decay effects to thumbnails
+                    .opacity(max(1.0 - (decayFactor * 0.5), 0.5)) // More aggressive opacity reduction
+                    .blur(radius: decayFactor > 0.5 ? min(decayFactor * 3.0, 3.0) : 0) // Stronger blur for high decay
+                    .contrast(max(1.0 - (decayFactor * 0.6), 0.4)) // More aggressive contrast reduction
+                    .saturation(max(1.0 - (decayFactor * 0.7), 0.3)) // Reduced saturation at high decay
+                    .rgbSplit(amount: decayFactor > 0.3 ? min(CGFloat(decayFactor * 6), 6) : 0, angle: 90) // Stronger RGB split
+                    .digitalNoise(intensity: min(decayFactor * 0.7, 0.7)) // Stronger noise
+                    // Add visual corruption elements for high decay
+                    .overlay(
+                        Group {
+                            if decayFactor > 0.6 {
+                                ZStack {
+                                    // Scan lines for moderate corruption
+                                    VStack(spacing: 3) {
+                                        ForEach(0..<10, id: \.self) { _ in
+                                            Rectangle()
+                                                .fill(Color.white.opacity(0.1))
+                                                .frame(height: 1)
+                                        }
+                                    }
+                                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                                    
+                                    // Random glitch rectangles for high corruption
+                                    if decayFactor > 0.8 {
+                                        ForEach(0..<Int(decayFactor * 5), id: \.self) { _ in
+                                            Rectangle()
+                                                .fill(Color.cyan.opacity(0.2))
+                                                .frame(
+                                                    width: CGFloat.random(in: 10...50),
+                                                    height: CGFloat.random(in: 3...15)
+                                                )
+                                                .offset(
+                                                    x: CGFloat.random(in: -60...60),
+                                                    y: CGFloat.random(in: -75...75)
+                                                )
+                                                .blendMode(.difference)
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(Color.cyan.opacity(0.8), lineWidth: 2)
+                            .strokeBorder(
+                                decayLevel > 50 ? Color.red.opacity(0.8) : GlitchTheme.colorForDecayLevel(decayLevel).opacity(0.8), 
+                                lineWidth: 2
+                            )
                     )
-                    .shadow(color: .cyan.opacity(0.5), radius: 3, x: 0, y: 0)
+                    .shadow(color: GlitchTheme.colorForDecayLevel(decayLevel).opacity(0.5), radius: 3, x: 0, y: 0)
+                    // Apply additional glitch effects for severe corruption
+                    .modifier(GlitchTheme.NoiseModifier(intensity: min(decayFactor * 0.5, 0.5)))
                     .onTapGesture {
                         isPresented = true
                     }
@@ -365,7 +453,7 @@ struct SavedPhotoView: View {
                     )
                     .overlay(
                         RoundedRectangle(cornerRadius: 6)
-                            .strokeBorder(Color.cyan.opacity(0.8), lineWidth: 2)
+                            .strokeBorder(GlitchTheme.colorForDecayLevel(decayLevel).opacity(0.8), lineWidth: 2)
                     )
             }
         }
@@ -377,7 +465,7 @@ struct SavedPhotoView: View {
             loadImage()
         }
         .fullScreenCover(isPresented: $isPresented) {
-            PhotoDetailView(photoURL: photoURL, isPresented: $isPresented)
+            PhotoDetailView(photoURL: photoURL, isPresented: $isPresented, decayLevel: decayLevel)
         }
     }
     

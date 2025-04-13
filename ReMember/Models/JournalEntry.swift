@@ -23,12 +23,12 @@ struct JournalEntry: Identifiable {
     }
     
     mutating func calculateDecay() {
-        // Calculate decay based on time passed
+        // Calculate decay based on time passed in days
         let calendar = Calendar.current
         let now = Date()
         let daysSinceCreation = calendar.dateComponents([.day], from: lastRestoredDate ?? creationDate, to: now).day ?? 0
         
-        // Simple decay algorithm: increase by 5 points per day, max 100
+        // Decay by 5 points per day 
         decayLevel = min(daysSinceCreation * 5, 100)
     }
     
