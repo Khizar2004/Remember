@@ -38,13 +38,23 @@ struct JournalEntry: Identifiable {
     }
     
     mutating func calculateDecay() {
-        // Calculate decay based on time passed in minutes (instead of days)
+        // Get the current decay time unit from settings
+        let timeUnit = UserSettings.shared.decayTimeUnit
+        
+        // Calculate decay based on time passed
         let calendar = Calendar.current
         let now = Date()
-        let minutesSinceCreation = calendar.dateComponents([.minute], from: lastRestoredDate ?? creationDate, to: now).minute ?? 0
         
-        // Decay by 5 points per minute (for testing) 
-        decayLevel = min(minutesSinceCreation * 5, 100)
+        // Calculate total minutes since creation or restoration
+        let minutesSinceLastUpdate = calendar.dateComponents([.minute], from: lastRestoredDate ?? creationDate, to: now).minute ?? 0
+        
+        // Convert minutes to the selected unit
+        let unitsElapsed = Double(minutesSinceLastUpdate) / timeUnit.minuteMultiplier
+        
+        // Apply decay rate - 5 points per unit (day or hour)
+        // For testing: 5 points per minute
+        let decayRate = 5.0
+        decayLevel = min(Int(unitsElapsed * decayRate), 100)
     }
     
     mutating func restore() {
