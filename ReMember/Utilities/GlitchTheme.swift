@@ -209,8 +209,8 @@ struct GlitchTheme {
     // Glitch blocks for error states
     struct GlitchBlocksModifier: ViewModifier {
         let intensity: Double
-        @State private var isVisible = false
         @State private var blocks: [GlitchBlock] = []
+        @State private var isVisible = false
         
         struct GlitchBlock: Identifiable {
             let id = UUID()
@@ -222,40 +222,44 @@ struct GlitchTheme {
         }
         
         func body(content: Content) -> some View {
-            content
-                .overlay(
-                    ZStack {
-                        if isVisible {
-                            ForEach(blocks) { block in
-                                Rectangle()
-                                    .fill(block.color)
-                                    .frame(width: block.width, height: block.height)
-                                    .position(x: block.x, y: block.y)
-                            }
-                        }
+            ZStack {
+                content
+                
+                // Only render glitch blocks if intensity is significant
+                if intensity > 0.1, isVisible {
+                    ForEach(blocks) { block in
+                        Rectangle()
+                            .fill(block.color)
+                            .frame(width: block.width, height: block.height)
+                            .position(x: block.x, y: block.y)
                     }
-                )
-                .onAppear {
-                    // Only activate if intensity is significant
-                    guard intensity > 0.3 else { return }
-                    
-                    // Create random glitch blocks
-                    let blockCount = Int(intensity * 5)
-                    blocks = (0..<blockCount).map { _ in
-                        GlitchBlock(
-                            x: CGFloat.random(in: 0...400),
-                            y: CGFloat.random(in: 0...800),
-                            width: CGFloat.random(in: 10...50),
-                            height: CGFloat.random(in: 3...20),
-                            color: [glitchCyan, glitchPink, glitchRed].randomElement()!.opacity(Double.random(in: 0.3...0.7))
-                        )
-                    }
-                    
-                    // Animate the blocks
+                }
+            }
+            .onAppear {
+                // Only activate if intensity is significant
+                guard intensity > 0.3 else { return }
+                
+                // Create random glitch blocks - limited number for performance
+                let blockCount = min(Int(intensity * 3), 5) // Limit to max 5 blocks
+                blocks = (0..<blockCount).map { _ in
+                    GlitchBlock(
+                        x: CGFloat.random(in: 0...400),
+                        y: CGFloat.random(in: 0...800),
+                        width: CGFloat.random(in: 10...50),
+                        height: CGFloat.random(in: 3...20),
+                        color: [glitchCyan, glitchPink, glitchRed].randomElement()!.opacity(Double.random(in: 0.3...0.7))
+                    )
+                }
+                
+                // Animate the blocks but only if intensity is high enough for better performance
+                if intensity > 0.5 {
                     withAnimation(Animation.easeInOut(duration: 0.2).repeatForever(autoreverses: true)) {
                         isVisible = true
                     }
+                } else {
+                    isVisible = true
                 }
+            }
         }
     }
 
@@ -289,24 +293,50 @@ struct GlitchedText: View {
     let text: String
     let decayLevel: Int
     let size: CGFloat
+    let isListView: Bool // Flag to determine if this is in a list view
     
     @State private var offset: CGSize = .zero
     @State private var glitchPhase = false
     private let id = UUID()
     
+    // Initialize with default isListView = false for backward compatibility
+    init(text: String, decayLevel: Int, size: CGFloat, isListView: Bool = false) {
+        self.text = text
+        self.decayLevel = decayLevel
+        self.size = size
+        self.isListView = isListView
+    }
+    
     var body: some View {
         let validDecayLevel = max(0, min(decayLevel, 100))
         let decayFactor = Double(validDecayLevel) / 100.0
-        let glitchedText = TextDecayEffect.applyDecay(to: text, level: validDecayLevel)
+        
+        // Only apply text decay in detail view or for very high decay in list view
+        let glitchedText: String
+        if isListView && validDecayLevel < 90 {
+            // Very minimal processing for list views
+            glitchedText = text
+        } else {
+            glitchedText = TextDecayEffect.applyDecay(to: text, level: validDecayLevel)
+        }
         
         return Text(glitchedText)
             .font(GlitchTheme.pixelFont(size: size))
             .foregroundColor(GlitchTheme.colorForDecayLevel(validDecayLevel))
-            .blur(radius: decayFactor > 0.7 ? 0.8 : 0)
+            .blur(radius: isListView ? min(decayFactor * 0.5, 0.5) : (decayFactor > 0.7 ? 0.8 : 0))
             .opacity(TextDecayEffect.opacityEffect(for: validDecayLevel))
             .offset(offset)
-            .modifier(GlitchTheme.RGBSplitModifier(amount: decayFactor > 0.5 ? CGFloat(decayFactor) : 0, angle: 90))
+            // Only apply RGB split in detail view and for significant decay
+            .modifier(GlitchTheme.RGBSplitModifier(
+                amount: isListView ? 0 : (decayFactor > 0.5 ? CGFloat(decayFactor) : 0), 
+                angle: 90
+            ))
             .onAppear {
+                // Skip animation for list views
+                if isListView {
+                    return
+                }
+                
                 // Only apply glitch effects for moderate to heavy decay
                 if validDecayLevel > 40 {
                     // Create a deterministic but random-looking jitter

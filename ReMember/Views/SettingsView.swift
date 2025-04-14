@@ -79,20 +79,76 @@ struct SettingsView: View {
                             .padding(.horizontal, 20)
                             
                             // Custom buttons instead of standard picker
-                            HStack(spacing: 0) {
-                                // Days button
+                            // Adjusted for three buttons
+                            VStack(spacing: 12) {
+                                // First row: Minutes and Hours
+                                HStack(spacing: 12) {
+                                    // Minutes button
+                                    Button {
+                                        // Update local state only, not UserDefaults
+                                        selectedUnit = .minutes
+                                        HapticFeedback.light()
+                                    } label: {
+                                        Text("MINUTES")
+                                            .font(GlitchTheme.terminalFont(size: 16))
+                                            .foregroundColor(selectedUnit == .minutes ? 
+                                                             GlitchTheme.background : 
+                                                             GlitchTheme.terminalGreen)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 44)
+                                            .background(
+                                                selectedUnit == .minutes ?
+                                                GlitchTheme.glitchCyan :
+                                                GlitchTheme.fieldBackground
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .stroke(GlitchTheme.glitchCyan.opacity(0.5), lineWidth: 1)
+                                            )
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                    
+                                    // Hours button
+                                    Button {
+                                        // Update local state only, not UserDefaults
+                                        selectedUnit = .hours
+                                        HapticFeedback.light()
+                                    } label: {
+                                        Text("HOURS")
+                                            .font(GlitchTheme.terminalFont(size: 16))
+                                            .foregroundColor(selectedUnit == .hours ? 
+                                                             GlitchTheme.background : 
+                                                             GlitchTheme.terminalGreen)
+                                            .frame(maxWidth: .infinity)
+                                            .frame(height: 44)
+                                            .background(
+                                                selectedUnit == .hours ?
+                                                GlitchTheme.glitchCyan :
+                                                GlitchTheme.fieldBackground
+                                            )
+                                            .overlay(
+                                                RoundedRectangle(cornerRadius: 4)
+                                                    .stroke(GlitchTheme.glitchCyan.opacity(0.5), lineWidth: 1)
+                                            )
+                                            .contentShape(Rectangle())
+                                    }
+                                    .buttonStyle(PlainButtonStyle())
+                                }
+                                
+                                // Second row: Days
                                 Button {
                                     // Update local state only, not UserDefaults
                                     selectedUnit = .days
                                     HapticFeedback.light()
                                 } label: {
                                     Text("DAYS")
-                                        .font(GlitchTheme.terminalFont(size: 18))
+                                        .font(GlitchTheme.terminalFont(size: 16))
                                         .foregroundColor(selectedUnit == .days ? 
                                                          GlitchTheme.background : 
                                                          GlitchTheme.terminalGreen)
                                         .frame(maxWidth: .infinity)
-                                        .frame(height: 50)
+                                        .frame(height: 44)
                                         .background(
                                             selectedUnit == .days ?
                                             GlitchTheme.glitchCyan :
@@ -105,38 +161,11 @@ struct SettingsView: View {
                                         .contentShape(Rectangle())
                                 }
                                 .buttonStyle(PlainButtonStyle())
-                                
-                                // Hours button
-                                Button {
-                                    // Update local state only, not UserDefaults
-                                    selectedUnit = .hours
-                                    HapticFeedback.light()
-                                } label: {
-                                    Text("HOURS")
-                                        .font(GlitchTheme.terminalFont(size: 18))
-                                        .foregroundColor(selectedUnit == .hours ? 
-                                                         GlitchTheme.background : 
-                                                         GlitchTheme.terminalGreen)
-                                        .frame(maxWidth: .infinity)
-                                        .frame(height: 50)
-                                        .background(
-                                            selectedUnit == .hours ?
-                                            GlitchTheme.glitchCyan :
-                                            GlitchTheme.fieldBackground
-                                        )
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 4)
-                                                .stroke(GlitchTheme.glitchCyan.opacity(0.5), lineWidth: 1)
-                                        )
-                                        .contentShape(Rectangle())
-                                }
-                                .buttonStyle(PlainButtonStyle())
                             }
-                            .cornerRadius(4)
                             .padding(.horizontal, 20)
                             
                             // Description text with better styling
-                            Text("Selecting HOURS will make memories decay faster than DAYS.")
+                            Text("Selecting MINUTES will make memories decay much faster than HOURS or DAYS.")
                                 .font(GlitchTheme.pixelFont(size: 14))
                                 .foregroundColor(GlitchTheme.glitchYellow)
                                 .padding(.top, 8)
@@ -161,25 +190,25 @@ struct SettingsView: View {
                                 // Decay rate examples
                                 VStack(spacing: 12) {
                                     makeDecayRateRow(
-                                        label: selectedUnit == .days ? "1 DAY:" : "1 HOUR:",
+                                        label: timeUnitLabel(1),
                                         value: "5%", 
                                         color: .green
                                     )
                                     
                                     makeDecayRateRow(
-                                        label: selectedUnit == .days ? "5 DAYS:" : "5 HOURS:",
+                                        label: timeUnitLabel(5),
                                         value: "25%", 
                                         color: .yellow
                                     )
                                     
                                     makeDecayRateRow(
-                                        label: selectedUnit == .days ? "10 DAYS:" : "10 HOURS:",
+                                        label: timeUnitLabel(10),
                                         value: "50%", 
                                         color: .orange
                                     )
                                     
                                     makeDecayRateRow(
-                                        label: selectedUnit == .days ? "20 DAYS:" : "20 HOURS:",
+                                        label: timeUnitLabel(20),
                                         value: "100%", 
                                         color: .red
                                     )
@@ -222,6 +251,18 @@ struct SettingsView: View {
             Text(value)
                 .font(GlitchTheme.pixelFont(size: 14))
                 .foregroundColor(color)
+        }
+    }
+    
+    // Helper to get appropriate time unit label based on the selected unit
+    private func timeUnitLabel(_ value: Int) -> String {
+        switch selectedUnit {
+        case .minutes:
+            return "\(value) \(value == 1 ? "MINUTE:" : "MINUTES:")"
+        case .hours:
+            return "\(value) \(value == 1 ? "HOUR:" : "HOURS:")"
+        case .days:
+            return "\(value) \(value == 1 ? "DAY:" : "DAYS:")"
         }
     }
 } 

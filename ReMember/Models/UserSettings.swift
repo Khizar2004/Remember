@@ -3,8 +3,9 @@ import Combine
 
 // Enum to represent time unit options for decay calculation
 enum DecayTimeUnit: String, CaseIterable, Identifiable {
-    case days = "DAYS"
+    case minutes = "MINUTES"
     case hours = "HOURS"
+    case days = "DAYS"
     
     var id: String { self.rawValue }
     
@@ -13,6 +14,7 @@ enum DecayTimeUnit: String, CaseIterable, Identifiable {
         switch self {
         case .days: return 24 * 60 // 1440 minutes in a day
         case .hours: return 60 // 60 minutes in an hour
+        case .minutes: return 1 // 1 minute in a minute
         }
     }
 }

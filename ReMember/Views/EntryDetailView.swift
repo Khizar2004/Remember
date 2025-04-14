@@ -235,7 +235,7 @@ struct EntryDetailView: View {
                                     .font(GlitchTheme.terminalFont(size: 12))
                                     .foregroundColor(GlitchTheme.glitchYellow.opacity(0.7))
                                 
-                                GlitchedText(text: entry.content, decayLevel: entry.decayLevel, size: 16)
+                                GlitchedText(text: entry.content, decayLevel: entry.decayLevel, size: 16, isListView: false)
                                     .lineSpacing(6)
                                     .glitchBlocks(intensity: Double(entry.decayLevel) / 200)
                             }
