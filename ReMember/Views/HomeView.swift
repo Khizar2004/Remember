@@ -29,7 +29,15 @@ struct HomeView: View {
                             
                             Spacer()
                             
-                            HStack(spacing: 4) {
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    viewModel.toggleSettings()
+                                }) {
+                                    Image(systemName: "gear")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(GlitchTheme.glitchCyan)
+                                }
+                                
                                 Circle()
                                     .fill(GlitchTheme.glitchCyan)
                                     .frame(width: 8, height: 8)
@@ -282,6 +290,12 @@ struct HomeView: View {
                 ToolbarItem(placement: .primaryAction) {
                     HStack {
                         Button(action: {
+                            viewModel.toggleSettings()
+                        }) {
+                            Label("Settings", systemImage: "gear")
+                        }
+                        
+                        Button(action: {
                             viewModel.toggleDecayTimeline()
                         }) {
                             Label("Memory Decay", systemImage: "chart.bar.fill")
@@ -320,6 +334,9 @@ struct HomeView: View {
                 }
             }
             MemoryChallengeView(challenge: challenge)
+        }
+        .sheet(isPresented: $viewModel.showingSettings) {
+            SettingsView()
         }
     }
     

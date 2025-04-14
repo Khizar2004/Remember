@@ -13,6 +13,7 @@ class HomeViewModel: ObservableObject {
     @Published var notificationsAuthorized = false // Track if notifications are authorized
     @Published var showingAchievements = false // Control for showing achievements view
     @Published var selectedChallengeEntry: JournalEntry? // Entry selected for challenge
+    @Published var showingSettings = false // Control for showing settings view
     
     private var cancellables = Set<AnyCancellable>()
     
@@ -244,6 +245,11 @@ class HomeViewModel: ObservableObject {
     // Toggle achievements view
     func toggleAchievements() {
         showingAchievements.toggle()
+    }
+    
+    // Toggle settings view
+    func toggleSettings() {
+        showingSettings.toggle()
     }
     
     // Start a memory challenge for an entry

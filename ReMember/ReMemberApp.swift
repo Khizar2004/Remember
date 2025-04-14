@@ -13,6 +13,9 @@ struct ReMemberApp: App {
     // Use a StateObject to ensure the store is created once and shared throughout the app lifetime
     @StateObject private var store = JournalEntryStore()
     
+    // Use a StateObject for UserSettings to ensure it's created once and shared throughout the app
+    @StateObject private var settings = UserSettings.shared
+    
     // Track initial boot sequence
     @State private var hasLaunchedBefore = UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
     
@@ -62,6 +65,7 @@ struct ReMemberApp: App {
             HomeView(viewModel: HomeViewModel(store: store))
                 .preferredColorScheme(.dark)
                 .environment(\.colorScheme, .dark) // Force dark mode
+                .environmentObject(settings) // Make settings available throughout the app
                 .onAppear {
                     // Mark as launched after first run
                     if !hasLaunchedBefore {
