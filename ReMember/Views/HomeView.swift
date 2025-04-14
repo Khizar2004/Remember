@@ -554,52 +554,35 @@ struct GlitchedEntryCard: View {
         VStack(alignment: .leading, spacing: 0) {
             // Title row - fixed height
             HStack {
-                if entry.decayLevel > 30 {
-                    // Use GlitchedText for higher decay levels to show decay effects
-                    GlitchedText(text: entry.title, 
-                                decayLevel: entry.decayLevel, 
-                                size: 18)
-                        .lineLimit(1)
-                        .frame(height: 24)
-                } else {
-                    // Use regular text for lower decay levels
-                    Text(entry.title)
-                        .font(GlitchTheme.terminalFont(size: 18))
-                        .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                        .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
-                        .blur(radius: TextDecayEffect.blurEffect(for: entry.decayLevel) * 0.5)
-                        .lineLimit(1)
-                        .frame(height: 24)
-                }
+                // Simplified title effects - no GlitchedText in list view for better performance
+                Text(entry.title)
+                    .font(GlitchTheme.terminalFont(size: 18))
+                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                    .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                    // Simple blur only - scales with decay but limited max value
+                    .blur(radius: min(CGFloat(entry.decayLevel) / 200, 0.5))
+                    .lineLimit(1)
+                    .frame(height: 24)
                 
                 Spacer()
                 
                 // Decay indicator
-                    Circle()
+                Circle()
                     .fill(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                        .frame(width: 12, height: 12)
+                    .frame(width: 12, height: 12)
             }
             .frame(height: 30)
             
             // Content preview - fixed height
-            if entry.decayLevel > 30 {
-                // Use GlitchedText for higher decay levels to show decay effects
-                GlitchedText(text: entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content, 
-                             decayLevel: entry.decayLevel, 
-                             size: 14)
-                    .lineLimit(3)
-                    .frame(height: 60, alignment: .top)
-                    .glitchBlocks(intensity: Double(entry.decayLevel) / 200)
-            } else {
-                // Use regular text for lower decay levels
-                Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
-                    .font(GlitchTheme.pixelFont(size: 14))
-                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                    .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
-                    .blur(radius: TextDecayEffect.blurEffect(for: entry.decayLevel) * 0.5)
-                    .lineLimit(3)
-                    .frame(height: 60, alignment: .top)
-            }
+            // Simplified content effects for performance
+            Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
+                .font(GlitchTheme.pixelFont(size: 14))
+                .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                // Simple blur effect only
+                .blur(radius: min(CGFloat(entry.decayLevel) / 200, 0.5))
+                .lineLimit(3)
+                .frame(height: 60, alignment: .top)
             
             // Info row - fixed height
             HStack {
@@ -621,10 +604,8 @@ struct GlitchedEntryCard: View {
                                 Color.red.opacity(0.8) : 
                                 GlitchTheme.glitchCyan.opacity(0.8)
                             )
-                            // Apply decay effects to the photo icon
+                            // Apply simplified decay effects to the photo icon
                             .opacity(max(1.0 - (decayFactor * 0.5), 0.5))
-                            .blur(radius: decayFactor > 0.5 ? min(decayFactor * 1.5, 1.5) : 0)
-                            .digitalNoise(intensity: min(decayFactor * 0.5, 0.5))
                         
                         Text("\(entry.photoAttachments.count)")
                             .font(GlitchTheme.pixelFont(size: 10))
@@ -690,8 +671,8 @@ struct GlitchedEntryCard: View {
                 .stroke(GlitchTheme.colorForDecayLevel(entry.decayLevel).opacity(0.3), lineWidth: 1)
         )
         .opacity(isDeleting ? 0.0 : 1.0)
-        .rgbSplit(amount: isDeleting ? 6.0 : min(CGFloat(entry.decayLevel) / 100, 2.0), angle: 90)
-        .digitalNoise(intensity: min(Double(entry.decayLevel) / 200, 0.2))
+        // Simplified RGB split - only applied for deletion animation, no continuous effect
+        .rgbSplit(amount: isDeleting ? 6.0 : 0.0, angle: 90)
     }
     
     private func formattedDate(_ date: Date) -> String {

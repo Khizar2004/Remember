@@ -51,8 +51,8 @@ struct JournalEntry: Identifiable {
         // Convert minutes to the selected unit
         let unitsElapsed = Double(minutesSinceLastUpdate) / timeUnit.minuteMultiplier
         
-        // Apply decay rate - 5 points per unit (day or hour)
-        // For testing: 5 points per minute
+        // Apply decay rate - 5 points per unit (day, hour, or minute)
+        // For minutes: 5 points per minute (very fast decay for testing)
         let decayRate = 5.0
         decayLevel = min(Int(unitsElapsed * decayRate), 100)
     }
