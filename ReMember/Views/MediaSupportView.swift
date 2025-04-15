@@ -226,17 +226,21 @@ struct PhotoDetailView: View {
                 
                 Spacer()
                 
-                // Add memory corruption indicator for highly degraded images
-                if decayLevel > 50 {
-                    Text("MEMORY CORRUPTION: \(decayLevel)%")
-                        .font(GlitchTheme.terminalFont(size: 16))
-                        .foregroundColor(.red)
-                        .padding(8)
-                        .background(Color.black.opacity(0.6))
-                        .cornerRadius(4)
-                        .padding(.bottom, 20)
-                        .glitchBlocks(intensity: min(decayFactor * 0.6, 0.6))
+                // Fixed height container for corruption indicator
+                ZStack {
+                    // Only show text if needed, but container is always present
+                    if decayLevel > 50 {
+                        Text("MEMORY CORRUPTION: \(decayLevel)%")
+                            .font(GlitchTheme.terminalFont(size: 16))
+                            .foregroundColor(.red)
+                            .padding(8)
+                            .background(Color.black.opacity(0.6))
+                            .cornerRadius(4)
+                            .glitchBlocks(intensity: min(decayFactor * 0.6, 0.6))
+                    }
                 }
+                .frame(height: 40) // Fixed height container
+                .padding(.bottom, 20)
             }
         }
         .id(photoURL.lastPathComponent) // Ensure unique identity

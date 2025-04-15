@@ -251,6 +251,25 @@ struct MemoryChallengeView: View {
                 Text("Score: \(challenge.score)/\(challenge.questions.count)")
                     .font(GlitchTheme.terminalFont(size: 18))
                     .foregroundColor(GlitchTheme.glitchYellow)
+                
+                // EXIT button for successful recovery
+                Button(action: {
+                    presentationMode.wrappedValue.dismiss()
+                }) {
+                    Text("EXIT")
+                        .font(GlitchTheme.terminalFont(size: 16))
+                        .foregroundColor(GlitchTheme.background)
+                        .padding()
+                        .frame(width: 200)
+                        .background(GlitchTheme.glitchCyan)
+                        .cornerRadius(8)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
+                .padding(.top, 20)
             } else {
                 Image(systemName: "exclamationmark.triangle")
                     .font(.system(size: 80))
@@ -269,45 +288,46 @@ struct MemoryChallengeView: View {
                     .font(GlitchTheme.terminalFont(size: 16))
                     .foregroundColor(GlitchTheme.terminalGreen)
                     .padding(.top, 10)
-            }
-            
-            HStack(spacing: 20) {
-                Button(action: {
-                    challenge.reset()
-                }) {
-                    Text("TRY AGAIN")
-                        .font(GlitchTheme.terminalFont(size: 16))
-                        .foregroundColor(GlitchTheme.background)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(GlitchTheme.glitchYellow)
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
                 
-                Button(action: {
-                    presentationMode.wrappedValue.dismiss()
-                }) {
-                    Text("EXIT")
-                        .font(GlitchTheme.terminalFont(size: 16))
-                        .foregroundColor(GlitchTheme.background)
-                        .padding()
-                        .frame(maxWidth: .infinity)
-                        .background(GlitchTheme.glitchCyan)
-                        .cornerRadius(8)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 8)
-                                .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
-                        )
+                // Only show TRY AGAIN and EXIT buttons for failed recovery
+                HStack(spacing: 20) {
+                    Button(action: {
+                        challenge.reset()
+                    }) {
+                        Text("TRY AGAIN")
+                            .font(GlitchTheme.terminalFont(size: 16))
+                            .foregroundColor(GlitchTheme.background)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(GlitchTheme.glitchYellow)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    
+                    Button(action: {
+                        presentationMode.wrappedValue.dismiss()
+                    }) {
+                        Text("EXIT")
+                            .font(GlitchTheme.terminalFont(size: 16))
+                            .foregroundColor(GlitchTheme.background)
+                            .padding()
+                            .frame(maxWidth: .infinity)
+                            .background(GlitchTheme.glitchCyan)
+                            .cornerRadius(8)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
+                            )
+                    }
+                    .buttonStyle(PlainButtonStyle())
                 }
-                .buttonStyle(PlainButtonStyle())
+                .padding(.horizontal)
+                .padding(.top, 20)
             }
-            .padding(.horizontal)
-            .padding(.top, 20)
         }
         .padding(30)
         .onAppear {
@@ -321,6 +341,11 @@ struct MemoryChallengeView: View {
                     withAnimation {
                         showingConfetti = false
                     }
+                }
+                
+                // Auto-dismiss the challenge view after successful completion (after showing results)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                    presentationMode.wrappedValue.dismiss()
                 }
             } else {
                 HapticFeedback.error()

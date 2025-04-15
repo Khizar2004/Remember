@@ -105,76 +105,38 @@ struct EntryDetailView: View {
                                         .frame(width: 8, height: 8)
                                         .screenFlicker(intensity: Double(entry.decayLevel) / 100.0)
                                     
-                                    Text("MEMORY STABILITY: \(100 - entry.decayLevel)%")
-                                        .font(GlitchTheme.terminalFont(size: 14))
+                                    // Split into two text elements to prevent redaction of the percentage
+                                    Text("MEMORY STABILITY:")
+                                        .font(GlitchTheme.terminalFont(size: 12))
                                         .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                                        .fixedSize(horizontal: true, vertical: false)
+                                        .lineLimit(1)
+                                        .id("stabilityLabel")
+                                    
+                                    Text("\(100 - entry.decayLevel)%")
+                                        .font(GlitchTheme.terminalFont(size: 16).bold())
+                                        .foregroundColor(.yellow)
+                                        .padding(.horizontal, 4)
+                                        .background(Color.black.opacity(0.8))
+                                        .cornerRadius(4)
+                                        .id("stabilityValue")
+                                        .fixedSize(horizontal: true, vertical: false)
+                                        .shadow(color: .yellow, radius: 1)
                                 }
                                 
                                 Spacer()
                                 
-                                // Memory Recovery button - only show if memory has some decay
-                                /*if entry.decayLevel > 0 {
-                                    if entry.decayLevel >= 50 {
-                                        // For high decay, use memory challenge - only if memory has custom questions
-                                        Button(action: {
-                                            // Start memory challenge if there are questions, otherwise directly restore
-                                            if entry.hasProtectionQuestions {
-                                                viewModel.startMemoryChallenge()
-                                            } else {
-                                                viewModel.restoreMemory()
-                                            }
-                                        }) {
-                                            HStack(spacing: 4) {
-                                                Image(systemName: entry.hasProtectionQuestions ? "brain.head.profile" : "arrow.clockwise")
-                                                    .font(.system(size: 12))
-                                                
-                                                Text(entry.hasProtectionQuestions ? "RECOVER" : "RESTORE")
-                                                    .font(GlitchTheme.terminalFont(size: 12))
-                                            }
-                                            .foregroundColor(GlitchTheme.glitchCyan)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(GlitchTheme.fieldBackground)
-                                            .cornerRadius(4)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 4)
-                                                    .stroke(GlitchTheme.glitchCyan.opacity(0.5), lineWidth: 1)
-                                            )
-                                        }
-                                        .padding(.horizontal, 8)
-                                    } else {
-                                        // For low decay, use direct restore
-                                        Button(action: {
-                                            // Direct restore
-                                            viewModel.restoreMemory()
-                                        }) {
-                                            HStack(spacing: 4) {
-                                                Image(systemName: "arrow.clockwise")
-                                                    .font(.system(size: 12))
-                                                
-                                                Text("RESTORE")
-                                                    .font(GlitchTheme.terminalFont(size: 12))
-                                            }
-                                            .foregroundColor(GlitchTheme.glitchYellow)
-                                            .padding(.horizontal, 8)
-                                            .padding(.vertical, 4)
-                                            .background(GlitchTheme.fieldBackground)
-                                            .cornerRadius(4)
-                                            .overlay(
-                                                RoundedRectangle(cornerRadius: 4)
-                                                    .stroke(GlitchTheme.glitchYellow.opacity(0.5), lineWidth: 1)
-                                            )
-                                        }
-                                        .padding(.horizontal, 8)
-                                    }
-                                }*/
-                                
-                                // Technical readout
+                                // Technical readout - smaller font size and fixed size
                                 Text("SYS.DECRYPT STATUS: \(entry.decayLevel > 50 ? "DEGRADED" : "NOMINAL")")
-                                    .font(GlitchTheme.terminalFont(size: 10))
+                                    .font(GlitchTheme.terminalFont(size: 9))
                                     .foregroundColor(entry.decayLevel > 50 ? GlitchTheme.glitchRed : GlitchTheme.glitchCyan)
+                                    .fixedSize(horizontal: true, vertical: false)
+                                    .lineLimit(1)
+                                    .id("decryptStatus")
                             }
                             .padding(.vertical, 5)
+                            .frame(height: 30) // Fixed height to prevent bouncing
+                            .id("statusHeader") // Stable ID for layout
                             
                             // Title display with high emphasis
                             VStack(alignment: .leading, spacing: 4) {
@@ -449,9 +411,103 @@ struct EntryDetailView: View {
                     .compositingGroup()
                     .blendMode(.screen)
             }
+            
+            // Custom memory corruption alert overlay
+            if showingEditWarning {
+                // Semi-transparent background overlay
+                Color.black.opacity(0.7)
+                    .edgesIgnoringSafeArea(.all)
+                    .onTapGesture {
+                        // Optional: allow dismissing by tapping outside
+                        // showingEditWarning = false
+                    }
+                
+                // Alert content
+                VStack(spacing: 20) {
+                    Text("MEMORY CORRUPTION CRITICAL")
+                        .font(GlitchTheme.terminalFont(size: 22))
+                        .foregroundColor(.red)
+                        .multilineTextAlignment(.center)
+                    
+                    Text("Memory fragment too degraded for modification. Stability below acceptable parameters.\n\nRestore memory to regain edit access.")
+                        .font(GlitchTheme.terminalFont(size: 16))
+                        .foregroundColor(.white)
+                        .multilineTextAlignment(.center)
+                        .padding(.horizontal)
+                    
+                    // Larger, more accessible buttons
+                    VStack(spacing: 16) {
+                        Button(action: {
+                            // RESTORE action
+                            showingEditWarning = false
+                            
+                            if let entry = viewModel.entry {
+                                if entry.decayLevel >= 50 && entry.hasProtectionQuestions {
+                                    // For high decay and has questions, launch the challenge
+                                    viewModel.startMemoryChallenge()
+                                } else {
+                                    // For lower decay or no questions, use direct restore
+                                    viewModel.initiateRestoration()
+                                    
+                                    // Add glitch effect animation on restore
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        glitchIntensity = 3.0
+                                    }
+                                    
+                                    // Return to normal after animation
+                                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                        withAnimation(.easeOut(duration: 0.5)) {
+                                            glitchIntensity = 0.0
+                                        }
+                                    }
+                                }
+                            }
+                        }) {
+                            Text("RESTORE")
+                                .font(GlitchTheme.terminalFont(size: 18).bold())
+                                .foregroundColor(GlitchTheme.background)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(GlitchTheme.glitchCyan)
+                                .cornerRadius(8)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        
+                        Button(action: {
+                            // UNDERSTOOD action - just dismiss
+                            showingEditWarning = false
+                        }) {
+                            Text("UNDERSTOOD")
+                                .font(GlitchTheme.terminalFont(size: 18))
+                                .foregroundColor(GlitchTheme.glitchCyan)
+                                .frame(maxWidth: .infinity)
+                                .padding(.vertical, 16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 8)
+                                        .stroke(GlitchTheme.glitchCyan, lineWidth: 2)
+                                )
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                    .padding(.top, 10)
+                    .frame(width: 280) // Fixed width for buttons
+                }
+                .padding(24)
+                .background(Color.black.opacity(0.9))
+                .cornerRadius(16)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(GlitchTheme.glitchRed, lineWidth: 2)
+                )
+                .frame(maxWidth: 320)
+                .transition(.opacity)
+                .zIndex(100)
+            }
         }
         .crtEffect(intensity: 1.0)
         .background(GlitchTheme.background.edgesIgnoringSafeArea(.all))
+        .navigationBarBackButtonHidden(true)
+        .toolbar { /* ... existing toolbar content ... */ }
         .sheet(isPresented: $showingEditView, onDismiss: {
             // Force reload the entry from the store after editing
             if let entryId = viewModel.entry?.id {
@@ -473,42 +529,6 @@ struct EntryDetailView: View {
             }
         }
         .id(viewModel.entry?.id.uuidString ?? "no-entry")
-        // Add warning alert for heavily corrupted memories
-        .alert(isPresented: $showingEditWarning) {
-            Alert(
-                title: Text("MEMORY CORRUPTION CRITICAL"),
-                message: Text("Memory fragment too degraded for modification. Stability below acceptable parameters.\n\nRestore memory to regain edit access."),
-                primaryButton: .default(Text("UNDERSTOOD")) {
-                    showingEditWarning = false
-                },
-                secondaryButton: .cancel(Text("RESTORE")) {
-                    // Initiate proper restoration method based on decay level and protection questions
-                    showingEditWarning = false
-                    
-                    if let entry = viewModel.entry {
-                        if entry.decayLevel >= 50 && entry.hasProtectionQuestions {
-                            // For high decay and has questions, launch the challenge
-                            viewModel.startMemoryChallenge()
-                        } else {
-                            // For lower decay or no questions, use direct restore
-                            viewModel.initiateRestoration()
-                            
-                            // Add glitch effect animation on restore
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                glitchIntensity = 3.0
-                            }
-                            
-                            // Return to normal after animation
-                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                                withAnimation(.easeOut(duration: 0.5)) {
-                                    glitchIntensity = 0.0
-                                }
-                            }
-                        }
-                    }
-                }
-            )
-        }
         .sheet(isPresented: $viewModel.showingMemoryChallenge) {
             if let entry = viewModel.entry {
                 let challenge = MemoryChallenge(entry: entry) { success in

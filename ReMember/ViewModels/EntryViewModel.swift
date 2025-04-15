@@ -214,14 +214,43 @@ class EntryViewModel: ObservableObject {
     func restoreMemory() {
         guard let entryToRestore = entry else { return }
         
-        // Restore memory in the store
-        store.restoreEntry(id: entryToRestore.id)
+        // Start restoration animation
+        showRestoreAnimation = true
+        restorationProgress = 0.0
         
-        // Update local entry reference
-        if let index = store.entries.firstIndex(where: { $0.id == entryToRestore.id }) {
-            self.entry = store.entries[index]
-            // Force UI refresh
-            self.objectWillChange.send()
+        // Create restoration animation
+        restorationTimer?.invalidate()
+        restorationTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
+            guard let self = self else { 
+                timer.invalidate()
+                return 
+            }
+            
+            // Increase progress
+            self.restorationProgress += 0.01
+            
+            // Finish restoration
+            if self.restorationProgress >= 1.0 {
+                timer.invalidate()
+                self.restorationTimer = nil
+                
+                // Restore memory in the store
+                self.store.restoreEntry(id: entryToRestore.id)
+                
+                // Update local entry reference
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                    // Dismiss restoration animation
+                    self.showRestoreAnimation = false
+                    
+                    // Trigger haptic feedback 
+                    HapticFeedback.success()
+                    
+                    // Update UI with the restored entry
+                    if let index = self.store.entries.firstIndex(where: { $0.id == entryToRestore.id }) {
+                        self.entry = self.store.entries[index]
+                    }
+                }
+            }
         }
     }
 } 
