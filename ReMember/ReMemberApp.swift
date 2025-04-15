@@ -7,6 +7,8 @@
 
 import SwiftUI
 import CoreData
+import Firebase
+import FirebaseAuth
 
 @main
 struct ReMemberApp: App {
@@ -22,6 +24,10 @@ struct ReMemberApp: App {
     // Ensure Core Data model setup
     init() {
         print("ReMemberApp initializing")
+        
+        // Initialize Firebase
+        FirebaseApp.configure()
+        print("Firebase initialized successfully")
         
         // Apply global UI appearance
         applyGlobalAppearance()
