@@ -7,11 +7,20 @@
 
 import SwiftUI
 import CoreData
+import Firebase
+import FirebaseAuth
+import GoogleSignIn
 
 @main
 struct ReMemberApp: App {
     // Use a StateObject to ensure the store is created once and shared throughout the app lifetime
     @StateObject private var store = JournalEntryStore()
+    
+    // Use a StateObject for UserSettings to ensure it's created once and shared throughout the app
+    @StateObject private var settings = UserSettings.shared
+    
+    // Authentication manager
+    @StateObject private var authManager = AuthManager.shared
     
     // Track initial boot sequence
     @State private var hasLaunchedBefore = UserDefaults.standard.bool(forKey: "hasLaunchedBefore")
@@ -20,12 +29,32 @@ struct ReMemberApp: App {
     init() {
         print("ReMemberApp initializing")
         
+        // Initialize Firebase
+        FirebaseApp.configure()
+        print("Firebase initialized successfully")
+        
+        // Configure Google Sign-In
+        configureGoogleSignIn()
+        
         // Apply global UI appearance
         applyGlobalAppearance()
         
         // Fix common Core Data issues
         let urls = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)
         print("Documents Directory: \(urls[urls.count-1])")
+    }
+    
+    // Configure Google Sign-In
+    private func configureGoogleSignIn() {
+        // Get the client ID from GoogleService-Info.plist
+        guard let clientID = FirebaseApp.app()?.options.clientID else {
+            print("Failed to get client ID from FirebaseApp")
+            return
+        }
+        
+        // Create GIDConfiguration with the Firebase client ID
+        GIDSignIn.sharedInstance.configuration = GIDConfiguration(clientID: clientID)
+        print("Google Sign-In configured with clientID: \(clientID)")
     }
     
     // Configure global appearance settings
@@ -59,16 +88,41 @@ struct ReMemberApp: App {
     
     var body: some Scene {
         WindowGroup {
-            HomeView(viewModel: HomeViewModel(store: store))
-                .preferredColorScheme(.dark)
-                .environment(\.colorScheme, .dark) // Force dark mode
-                .onAppear {
-                    // Mark as launched after first run
-                    if !hasLaunchedBefore {
-                        UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
-                        hasLaunchedBefore = true
-                    }
+            Group {
+                // Show appropriate view based on authentication state
+                if authManager.authState == .signedIn {
+                    // User is signed in, show main app content
+                    HomeView(viewModel: HomeViewModel(store: store))
+                        .environmentObject(settings)
+                        .environmentObject(authManager)
+                } else {
+                    // User is not signed in, show login view
+                    LoginView()
+                        .environmentObject(authManager)
                 }
+            }
+            .preferredColorScheme(.dark)
+            .environment(\.colorScheme, .dark) // Force dark mode
+            .onAppear {
+                // Mark as launched after first run
+                if !hasLaunchedBefore {
+                    UserDefaults.standard.set(true, forKey: "hasLaunchedBefore")
+                    hasLaunchedBefore = true
+                }
+            }
+            // Handle Google Sign-In URL
+            .onOpenURL { url in
+                print("Received URL: \(url)")
+                GIDSignIn.sharedInstance.handle(url)
+            }
+            // Listen for auth state changes to refresh entries
+            .onChange(of: authManager.authState) { oldValue, newValue in
+                print("Auth state changed from \(oldValue) to \(newValue)")
+                if newValue == .signedIn {
+                    // Refresh entries when user signs in
+                    store.refreshEntriesForCurrentUser()
+                }
+            }
         }
     }
 }

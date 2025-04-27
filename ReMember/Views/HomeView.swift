@@ -22,14 +22,22 @@ struct HomeView: View {
                     VStack(spacing: 0) {
                         // App title and status
                         HStack {
-                            Text("RE:MEMBER")
+                    Text("RE:MEMBER")
                                 .font(GlitchTheme.terminalFont(size: 28))
                                 .foregroundColor(GlitchTheme.terminalGreen)
                                 .fixedSize()
                             
                             Spacer()
                             
-                            HStack(spacing: 4) {
+                            HStack(spacing: 8) {
+                                Button(action: {
+                                    viewModel.toggleSettings()
+                                }) {
+                                    Image(systemName: "gear")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(GlitchTheme.glitchCyan)
+                                }
+                                
                                 Circle()
                                     .fill(GlitchTheme.glitchCyan)
                                     .frame(width: 8, height: 8)
@@ -65,8 +73,8 @@ struct HomeView: View {
                                     .font(GlitchTheme.terminalFont(size: 16))
                                     .foregroundColor(GlitchTheme.terminalGreen)
                                     .accentColor(GlitchTheme.glitchCyan)
-                                    .autocapitalization(.none)
-                                    .disableAutocorrection(true)
+                            .autocapitalization(.none)
+                            .disableAutocorrection(true)
                                     .placeholder(when: viewModel.searchText.isEmpty) {
                                         Text("SEARCH MEMORY DATABASE")
                                             .font(GlitchTheme.terminalFont(size: 16))
@@ -75,8 +83,8 @@ struct HomeView: View {
                                 
                                 Spacer()
                                 
-                                Button(action: {
-                                    viewModel.refreshEntries()
+                        Button(action: {
+                            viewModel.refreshEntries()
                                     DispatchQueue.main.async {
                                         HapticFeedback.light()
                                     }
@@ -115,6 +123,11 @@ struct HomeView: View {
                     .background(Color.black.opacity(0.2)) // Subtle background for header section
                     .frame(height: 132) // Fixed total height (44 + 44 + 20 + padding)
                     
+                    // Add tag filtering section if there are tags
+                    if !viewModel.availableTags.isEmpty {
+                        TagsContainerView(viewModel: viewModel)
+                    }
+                    
                     // Content area
                     if viewModel.filteredEntries.isEmpty {
                         Spacer()
@@ -148,26 +161,27 @@ struct HomeView: View {
                     } else {
                         // Entries list - using List for proper swipe action support
                         List {
-                            ForEach(viewModel.filteredEntries) { entry in
+                                ForEach(viewModel.filteredEntries) { entry in
                                 ZStack {
                                     GlitchedEntryCard(entry: entry)
                                 }
                                 .contentShape(Rectangle())
-                                .onTapGesture { 
-                                    selectedEntry = entry 
-                                }
+                                        .onTapGesture {
+                                            selectedEntry = entry
+                                        }
                                 .listRowBackground(Color.clear)
                                 .listRowSeparator(.hidden)
                                 .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .frame(height: 140)
+                                .frame(height: entry.tags.isEmpty ? 140 : 160)
                                 .swipeActions(edge: .trailing) {
-                                    Button(role: .destructive) {
+                                    Button {
                                         entryToDelete = entry.id
                                         showingDeleteConfirmation = true
                                         HapticFeedback.light()
                                     } label: {
                                         Label("DELETE", systemImage: "trash")
                                     }
+                                    .tint(GlitchTheme.glitchRed)
                                 }
                             }
                         }
@@ -191,7 +205,7 @@ struct HomeView: View {
                                     .fill(GlitchTheme.glitchCyan)
                                     .frame(width: 60, height: 60)
                                 
-                                Image(systemName: "plus")
+                            Image(systemName: "plus")
                                     .font(.system(size: 24, weight: .bold))
                                     .foregroundColor(GlitchTheme.background)
                             }
@@ -224,7 +238,7 @@ struct HomeView: View {
                         }
                     }
                 } else {
-                    viewModel.refreshEntries()
+                viewModel.refreshEntries()
                 }
             }
             .sheet(isPresented: $showingNewEntryView, onDismiss: {
@@ -272,6 +286,57 @@ struct HomeView: View {
                     entryToDelete = nil
                 }
             }
+            .toolbar {
+                ToolbarItem(placement: .primaryAction) {
+                    HStack {
+                        Button(action: {
+                            viewModel.toggleSettings()
+                        }) {
+                            Label("Settings", systemImage: "gear")
+                        }
+                        
+                        Button(action: {
+                            viewModel.toggleDecayTimeline()
+                        }) {
+                            Label("Memory Decay", systemImage: "chart.bar.fill")
+                        }
+                        
+                        Button(action: {
+                            viewModel.toggleAchievements()
+                        }) {
+                            Label("Achievements", systemImage: "trophy.fill")
+                        }
+                    }
+                }
+            }
+        }
+        .overlay(
+            Group {
+                if viewModel.showingDecayTimeline {
+                    DecayTimelineView(viewModel: viewModel)
+                        .transition(.move(edge: .bottom))
+                }
+                
+                if viewModel.showingAchievements, let achievements = viewModel.userAchievements {
+                    AchievementsView(userAchievements: achievements)
+                        .transition(.move(edge: .bottom))
+                }
+            }
+            .animation(.spring(), value: viewModel.showingDecayTimeline)
+            .animation(.spring(), value: viewModel.showingAchievements)
+        )
+        .sheet(item: $viewModel.selectedChallengeEntry) { entry in
+            let challenge = MemoryChallenge(entry: entry) { success in
+                if success {
+                    // Successfully restored the memory
+                    viewModel.store.restoreEntry(id: entry.id)
+                    HapticFeedback.success()
+                }
+            }
+            MemoryChallengeView(challenge: challenge)
+        }
+        .sheet(isPresented: $viewModel.showingSettings) {
+            SettingsView()
         }
     }
     
@@ -485,15 +550,35 @@ struct GlitchedEntryCard: View {
     let entry: JournalEntry
     @State private var isDeleting = false
     
+    // State for text jitter - simple but effective visual
+    @State private var jitterOffset: CGFloat = 0
+    @State private var jitterPhase = false
+    @State private var flickerPhase = UUID()
+    @State private var flickerTimer: Timer? = nil
+    
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             // Title row - fixed height
             HStack {
-                Text(entry.title)
-                    .font(GlitchTheme.terminalFont(size: 18))
-                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                    .lineLimit(1)
-                    .frame(height: 24)
+                if entry.decayLevel > 75 {
+                    // Use optimized glitch effect for titles with high decay
+                    Text(applyVisualDecay(entry.title, decay: entry.decayLevel))
+                        .font(GlitchTheme.terminalFont(size: 18))
+                        .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                        .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                        .blur(radius: min(CGFloat(entry.decayLevel) / 200, 0.5))
+                        .offset(x: entry.decayLevel > 85 ? jitterOffset : 0)
+                        .lineLimit(1)
+                        .frame(height: 24)
+                } else {
+                    // Use simple styling for low decay
+                    Text(entry.title)
+                        .font(GlitchTheme.terminalFont(size: 18))
+                        .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                        .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                        .lineLimit(1)
+                        .frame(height: 24)
+                }
                 
                 Spacer()
                 
@@ -505,12 +590,27 @@ struct GlitchedEntryCard: View {
             .frame(height: 30)
             
             // Content preview - fixed height
-            Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
-                .font(GlitchTheme.pixelFont(size: 14))
-                .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
-                .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
-                .lineLimit(3)
-                .frame(height: 70, alignment: .top)
+            if entry.decayLevel > 80 {
+                // Use optimized glitch effect for content with high decay
+                Text(applyVisualDecay(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content, decay: entry.decayLevel))
+                    .font(GlitchTheme.pixelFont(size: 14))
+                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                    .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                    .blur(radius: min(CGFloat(entry.decayLevel) / 200, 0.5))
+                    .offset(x: entry.decayLevel > 90 ? jitterOffset * 1.5 : 0)
+                    .lineLimit(3)
+                    .frame(height: 60, alignment: .top)
+                    // Only add RGB split at critical decay levels (>90)
+                    .rgbSplit(amount: entry.decayLevel > 90 ? min(CGFloat(entry.decayLevel) / 60, 1.5) : 0, angle: 90)
+            } else {
+                // Use simple styling for low decay
+                Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
+                    .font(GlitchTheme.pixelFont(size: 14))
+                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                    .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                    .lineLimit(3)
+                    .frame(height: 60, alignment: .top)
+            }
             
             // Info row - fixed height
             HStack {
@@ -520,6 +620,39 @@ struct GlitchedEntryCard: View {
                 
                 Spacer()
                 
+                // Show indicator for photo attachments
+                if !entry.photoAttachments.isEmpty {
+                    let decayFactor = min(max(Double(entry.decayLevel), 0), 100) / 100.0
+                    
+                    HStack(spacing: 4) {
+                        Image(systemName: "photo")
+                            .font(.system(size: 10))
+                            .foregroundColor(
+                                entry.decayLevel > 50 ? 
+                                Color.red.opacity(0.8) : 
+                                GlitchTheme.glitchCyan.opacity(0.8)
+                            )
+                            // Apply simplified decay effects to the photo icon
+                            .opacity(max(1.0 - (decayFactor * 0.5), 0.5))
+                        
+                        Text("\(entry.photoAttachments.count)")
+                            .font(GlitchTheme.pixelFont(size: 10))
+                            .foregroundColor(
+                                entry.decayLevel > 50 ? 
+                                Color.red.opacity(0.7) : 
+                                GlitchTheme.glitchCyan
+                            )
+                            // Apply text decay effects
+                            .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
+                    }
+                    .padding(.horizontal, 4)
+                    .padding(.vertical, 2)
+                    .background(GlitchTheme.fieldBackground.opacity(0.3))
+                    .cornerRadius(4)
+                    
+                    Spacer().frame(width: 8)
+                }
+                
                 if let restored = entry.lastRestoredDate {
                     Text("RESTORED: \(formattedDate(restored))")
                         .font(GlitchTheme.pixelFont(size: 10))
@@ -527,6 +660,36 @@ struct GlitchedEntryCard: View {
                 }
             }
             .frame(height: 20)
+            
+            // Tags row - fixed height
+            if !entry.tags.isEmpty {
+                HStack(spacing: 4) {
+                    ForEach(Array(entry.tags.prefix(3)), id: \.self) { tag in
+                        Text(tag)
+                            .font(GlitchTheme.pixelFont(size: 9))
+                            .foregroundColor(GlitchTheme.glitchCyan.opacity(0.8))
+                            .lineLimit(1)
+                            .padding(.horizontal, 4)
+                            .padding(.vertical, 2)
+                            .background(GlitchTheme.fieldBackground.opacity(0.7))
+                            .cornerRadius(2)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 2)
+                                    .stroke(GlitchTheme.glitchCyan.opacity(0.4), lineWidth: 0.5)
+                            )
+                    }
+                    
+                    if entry.tags.count > 3 {
+                        Text("+\(entry.tags.count - 3)")
+                            .font(GlitchTheme.pixelFont(size: 9))
+                            .foregroundColor(GlitchTheme.glitchYellow)
+                    }
+                    
+                    Spacer()
+                }
+                .padding(.top, 4)
+                .frame(height: 20)
+            }
         }
         .padding(10)
         .background(GlitchTheme.cardBackground)
@@ -536,13 +699,151 @@ struct GlitchedEntryCard: View {
                 .stroke(GlitchTheme.colorForDecayLevel(entry.decayLevel).opacity(0.3), lineWidth: 1)
         )
         .opacity(isDeleting ? 0.0 : 1.0)
-        .rgbSplit(amount: isDeleting ? 6.0 : 0.0, angle: 90)
+        // Apply RGB split only for deletion or high decay
+        .rgbSplit(amount: isDeleting ? 6.0 : (entry.decayLevel > 95 ? 1.0 : 0.0), angle: 90)
+        .onAppear {
+            // Only start jitter animation for high decay
+            if entry.decayLevel > 85 {
+                // Simple jitter animation that's not CPU intensive
+                withAnimation(Animation.easeInOut(duration: 0.15).repeatForever(autoreverses: true)) {
+                    jitterOffset = CGFloat.random(in: -1.0...1.0)
+                    jitterPhase = true
+                }
+            }
+            
+            // Start flicker timer for redaction effects
+            self.flickerTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
+                // Always update the flicker phase regardless of scroll state
+                self.flickerPhase = UUID()
+            }
+            
+            // Make sure the timer runs on a high-priority runloop mode
+            RunLoop.current.add(self.flickerTimer!, forMode: .common)
+        }
+        .onDisappear {
+            // Clean up timer
+            flickerTimer?.invalidate()
+            flickerTimer = nil
+        }
     }
     
     private func formattedDate(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM.dd.yy HH:mm"
         return formatter.string(from: date)
+    }
+    
+    // Helper to apply both visual glitching and text redaction based on decay level
+    private func applyVisualDecay(_ text: String, decay: Int) -> String {
+        // Basic text corruption cache - avoid expensive operations on same text
+        // Text structure caching - no need to regenerate the same patterns
+        struct DecayCache {
+            static var cache: [String: [String: String]] = [:]
+            static let limit = 30 // Limit cache size
+        }
+        
+        // Generate cache key using both decay and current flicker phase for dynamic changes
+        let cacheKey = "\(decay)_\(flickerPhase)"
+        
+        // Check cache first
+        if let cached = DecayCache.cache[text]?[cacheKey] {
+            return cached
+        }
+        
+        // Clean cache if too large
+        if DecayCache.cache.count > DecayCache.limit {
+            DecayCache.cache.removeAll()
+        }
+        
+        var result = text
+        let decayFactor = Double(decay) / 100.0
+        
+        // Get current milliseconds for flickering
+        let timeBasedFlicker = Int(Date().timeIntervalSince1970 * 1000) % 1000
+        
+        // Array of different redaction characters for flickering effect
+        let redactionChars = ["█", "▓", "▒", "░", "■", "◼", "◾", "▪", "▇"]
+        
+        // Select primary and secondary redaction characters based on flicker phase
+        let primaryRedaction = redactionChars[timeBasedFlicker % redactionChars.count]
+        let secondaryRedaction = redactionChars[(timeBasedFlicker + 2) % redactionChars.count]
+        
+        // Determine if we're in a glitch moment (brief visual artifact)
+        let glitchMoment = timeBasedFlicker % 200 < 20 // Occasional glitch
+        
+        // Apply effects based on decay level
+        if decay >= 95 {
+            // Critical decay - heavy redaction (mostly obscured)
+            var processed = ""
+            for (i, char) in text.enumerated() {
+                if i % 10 == 0 || (char == " " && i % 5 == 0) {
+                    processed.append(char) // Keep some characters visible
+                } else if i % 20 == 0 {
+                    // Add rare glitch char for visual interest
+                    let glyphChars = ["¥", "§", "Æ", "¢", "Ø", "∆", "Ω", "π", "µ"]
+                    processed.append(glyphChars[(i + timeBasedFlicker) % glyphChars.count])
+                } else if glitchMoment && i % 7 == 0 {
+                    // During glitch moments, add digital artifacts
+                    let artifacts = ["0", "1", "/", "\\", "|", "~", "_"]
+                    processed.append(artifacts[(i + timeBasedFlicker) % artifacts.count])
+                } else {
+                    // Primary or secondary redaction with flickering
+                    processed.append((i + timeBasedFlicker) % 5 == 0 ? secondaryRedaction : primaryRedaction)
+                }
+            }
+            result = processed
+        }
+        else if decay >= 85 {
+            // High decay - partial redaction with some glitch characters
+            var processed = ""
+            for (i, char) in text.enumerated() {
+                if i % 5 == 0 || char == " " || Double.random(in: 0...1) > 0.8 {
+                    processed.append(char)
+                } else if Double.random(in: 0...1) > 0.6 {
+                    // Add occasional glitch char for variety
+                    let glitchChars = ["#", "@", "$", "%", "&", "*", "!"]
+                    processed.append(glitchChars[(i + timeBasedFlicker) % glitchChars.count])
+                } else if glitchMoment && i % 8 == 0 {
+                    // Occasionally let characters "bleed through" during glitch moments
+                    processed.append(char)
+                } else {
+                    // Flickering redaction
+                    processed.append((i + timeBasedFlicker) % 4 == 0 ? secondaryRedaction : primaryRedaction)
+                }
+            }
+            result = processed
+        }
+        else if decay >= 75 {
+            // Medium decay - character corruption and slight redaction
+            var processed = ""
+            for (i, char) in text.enumerated() {
+                let charString = String(char).lowercased()
+                
+                if charString == "a" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("4")
+                } else if charString == "e" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("3")
+                } else if charString == "i" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("1") 
+                } else if charString == "o" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("0")
+                } else if i % 8 == 0 && Double.random(in: 0...1) < decayFactor * 0.5 {
+                    // Flickering redaction for medium decay
+                    processed.append((i + timeBasedFlicker) % 3 == 0 ? secondaryRedaction : primaryRedaction)
+                } else {
+                    processed.append(char)
+                }
+            }
+            result = processed
+        }
+        
+        // Cache result
+        if DecayCache.cache[text] == nil {
+            DecayCache.cache[text] = [:]
+        }
+        DecayCache.cache[text]?[cacheKey] = result
+        
+        return result
     }
     
     func triggerDeleteAnimation() {
@@ -552,6 +853,9 @@ struct GlitchedEntryCard: View {
     }
 }
 
+#Preview {
+    HomeView(viewModel: HomeViewModel())
+} 
 #Preview {
     HomeView(viewModel: HomeViewModel())
 } 

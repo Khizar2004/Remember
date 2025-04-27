@@ -3,9 +3,13 @@
     <entity name="JournalEntryEntity" representedClassName="JournalEntryEntity" syncable="YES" codeGenerationType="class">
         <attribute name="content" optional="YES" attributeType="String"/>
         <attribute name="creationDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="customQuestions" optional="YES" attributeType="Binary"/>
         <attribute name="decayLevel" optional="YES" attributeType="Integer 16" defaultValueString="0" usesScalarValueType="YES"/>
         <attribute name="id" optional="YES" attributeType="UUID" usesScalarValueType="NO"/>
         <attribute name="lastRestoredDate" optional="YES" attributeType="Date" usesScalarValueType="NO"/>
+        <attribute name="photoAttachments" optional="YES" attributeType="Binary"/>
+        <attribute name="tags" optional="YES" attributeType="Binary"/>
         <attribute name="title" optional="YES" attributeType="String"/>
+        <attribute name="userID" optional="YES" attributeType="String"/>
     </entity>
 </model> 

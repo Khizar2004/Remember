@@ -2,6 +2,10 @@ import SwiftUI
 
 struct TextDecayEffect {
     
+    // Cache for processed text to avoid recalculating
+    private static var textCache: [String: [Int: String]] = [:]
+    private static let cacheLimit = 100
+    
     /// Apply decay effect to text based on decay level
     /// - Parameters:
     ///   - text: Original text to decay
@@ -12,92 +16,79 @@ struct TextDecayEffect {
         let validDecayLevel = max(0, min(decayLevel, 100))
         guard validDecayLevel > 0 else { return text }
         
+        // Return cached result if available
+        if let cachedResults = textCache[text], let cachedText = cachedResults[validDecayLevel] {
+            return cachedText
+        }
+        
+        // For very long texts, only process the first 300 characters
+        let processText = text.count > 300 ? String(text.prefix(300)) + "..." : text
         let decayFactor = Double(validDecayLevel) / 100.0
         
-        var result = text
+        var result = processText
         
-        // Character corruption
-        if decayFactor > 0.2 {
+        // Character corruption - use simpler approach for better performance
+        if decayFactor > 0.4 { // Only apply to higher decay levels
             result = corruptCharacters(in: result, factor: decayFactor)
         }
         
-        // Missing parts
-        if decayFactor > 0.4 {
-            result = createGaps(in: result, factor: decayFactor)
+        // No more complex operations for list view performance
+        // Only do character corruption and simplify how we do it
+        
+        // Store in cache
+        if textCache.count > cacheLimit {
+            // Clear oldest entries if cache is too large
+            textCache = [:]
         }
         
-        // Glitch text with random characters
-        if decayFactor > 0.6 {
-            result = addGlitchArtifacts(to: result, factor: decayFactor)
+        if textCache[text] == nil {
+            textCache[text] = [:]
         }
+        textCache[text]?[validDecayLevel] = result
         
         return result
     }
     
-    // Replace some characters with similar looking ones
+    // Replace some characters with similar looking ones - simplified for performance
     private static func corruptCharacters(in text: String, factor: Double) -> String {
-        let corruptionMap: [String: [String]] = [
-            "a": ["4", "@", "a"],
-            "e": ["3", "e", "e"],
-            "i": ["1", "!", "i"],
-            "o": ["0", "o", "o"],
-            "s": ["5", "$", "s"],
-            "t": ["+", "t", "t"],
-            " ": [" ", "_", " "]
+        // Simplified corruption - only do a subset of characters
+        let corruptionMap: [Character: Character] = [
+            "a": "4",
+            "e": "3",
+            "i": "1",
+            "o": "0", 
+            "s": "5"
         ]
         
-        let corruptionChance = min(factor * 0.5, 0.5) // Max 50% corruption at full decay
+        // Reduce corruption chance for better performance
+        let corruptionChance = min(factor * 0.3, 0.3) // Max 30% corruption at full decay
         
-        return String(text.map { char in
-            let charString = String(char).lowercased()
-            if let possibleReplacements = corruptionMap[charString], 
+        // Only process if there's a reasonable chance of corruption
+        guard corruptionChance > 0.05 else { return text }
+        
+        var result = ""
+        for char in text {
+            if let replacement = corruptionMap[char.lowercased().first ?? char], 
                Double.random(in: 0...1) < corruptionChance {
-                return Character(possibleReplacements.randomElement() ?? charString)
-            }
-            return char
-        })
-    }
-    
-    // Create gaps in text by replacing characters with spaces
-    private static func createGaps(in text: String, factor: Double) -> String {
-        let gapChance = min(factor * 0.3, 0.3) // Max 30% gaps at full decay
-        
-        return String(text.map { char in
-            if Double.random(in: 0...1) < gapChance {
-                return " "
-            }
-            return char
-        })
-    }
-    
-    // Add random glitch artifacts
-    private static func addGlitchArtifacts(to text: String, factor: Double) -> String {
-        let glitchChars = ["#", "!", "@", "$", "%", "&", "*", "=", "+", "-", "~", "`"]
-        let glitchChance = min(factor * 0.2, 0.2) // Max 20% glitch artifacts at full decay
-        
-        var result = text
-        let insertions = min(Int(Double(text.count) * glitchChance), text.count / 4)
-        
-        for _ in 0..<insertions {
-            if let glitchChar = glitchChars.randomElement(),
-               let randomIndex = result.indices.randomElement() {
-                result.insert(contentsOf: String(glitchChar), at: randomIndex)
+                result.append(replacement)
+            } else {
+                result.append(char)
             }
         }
         
         return result
     }
     
-    // Calculate the amount of blur to apply based on decay level
+    // Calculate the amount of blur to apply based on decay level - simplified
     static func blurEffect(for decayLevel: Int) -> Double {
         let validDecayLevel = max(0, min(decayLevel, 100))
-        return min(Double(validDecayLevel) / 20.0, 5.0) // Max blur of 5.0 at full decay
+        return Double(validDecayLevel) / 100.0 // Linear scaling, max 1.0
     }
     
-    // Calculate the opacity for text based on decay level
+    // Calculate the opacity for text based on decay level - simplified
     static func opacityEffect(for decayLevel: Int) -> Double {
         let validDecayLevel = max(0, min(decayLevel, 100))
-        return max(1.0 - (Double(validDecayLevel) / 200.0), 0.5) // Min opacity of 0.5 at full decay
+        return max(1.0 - (Double(validDecayLevel) / 150.0), 0.5) // Min opacity of 0.5 at full decay
     }
     
     // Create a jitter animation for the text

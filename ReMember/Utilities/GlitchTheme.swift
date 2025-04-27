@@ -209,8 +209,8 @@ struct GlitchTheme {
     // Glitch blocks for error states
     struct GlitchBlocksModifier: ViewModifier {
         let intensity: Double
-        @State private var isVisible = false
         @State private var blocks: [GlitchBlock] = []
+        @State private var isVisible = false
         
         struct GlitchBlock: Identifiable {
             let id = UUID()
@@ -222,40 +222,44 @@ struct GlitchTheme {
         }
         
         func body(content: Content) -> some View {
-            content
-                .overlay(
-                    ZStack {
-                        if isVisible {
-                            ForEach(blocks) { block in
-                                Rectangle()
-                                    .fill(block.color)
-                                    .frame(width: block.width, height: block.height)
-                                    .position(x: block.x, y: block.y)
-                            }
-                        }
+            ZStack {
+                content
+                
+                // Only render glitch blocks if intensity is significant
+                if intensity > 0.1, isVisible {
+                    ForEach(blocks) { block in
+                        Rectangle()
+                            .fill(block.color)
+                            .frame(width: block.width, height: block.height)
+                            .position(x: block.x, y: block.y)
                     }
-                )
-                .onAppear {
-                    // Only activate if intensity is significant
-                    guard intensity > 0.3 else { return }
-                    
-                    // Create random glitch blocks
-                    let blockCount = Int(intensity * 5)
-                    blocks = (0..<blockCount).map { _ in
-                        GlitchBlock(
-                            x: CGFloat.random(in: 0...400),
-                            y: CGFloat.random(in: 0...800),
-                            width: CGFloat.random(in: 10...50),
-                            height: CGFloat.random(in: 3...20),
-                            color: [glitchCyan, glitchPink, glitchRed].randomElement()!.opacity(Double.random(in: 0.3...0.7))
-                        )
-                    }
-                    
-                    // Animate the blocks
+                }
+            }
+            .onAppear {
+                // Only activate if intensity is significant
+                guard intensity > 0.3 else { return }
+                
+                // Create random glitch blocks - limited number for performance
+                let blockCount = min(Int(intensity * 3), 5) // Limit to max 5 blocks
+                blocks = (0..<blockCount).map { _ in
+                    GlitchBlock(
+                        x: CGFloat.random(in: 0...400),
+                        y: CGFloat.random(in: 0...800),
+                        width: CGFloat.random(in: 10...50),
+                        height: CGFloat.random(in: 3...20),
+                        color: [glitchCyan, glitchPink, glitchRed].randomElement()!.opacity(Double.random(in: 0.3...0.7))
+                    )
+                }
+                
+                // Animate the blocks but only if intensity is high enough for better performance
+                if intensity > 0.5 {
                     withAnimation(Animation.easeInOut(duration: 0.2).repeatForever(autoreverses: true)) {
                         isVisible = true
                     }
+                } else {
+                    isVisible = true
                 }
+            }
         }
     }
 
@@ -289,37 +293,66 @@ struct GlitchedText: View {
     let text: String
     let decayLevel: Int
     let size: CGFloat
+    let isListView: Bool // Flag to determine if this is in a list view
     
     @State private var offset: CGSize = .zero
     @State private var glitchPhase = false
     private let id = UUID()
     
+    // Initialize with default isListView = false for backward compatibility
+    init(text: String, decayLevel: Int, size: CGFloat, isListView: Bool = false) {
+        self.text = text
+        self.decayLevel = decayLevel
+        self.size = size
+        self.isListView = isListView
+    }
+    
     var body: some View {
         let validDecayLevel = max(0, min(decayLevel, 100))
         let decayFactor = Double(validDecayLevel) / 100.0
-        let glitchedText = TextDecayEffect.applyDecay(to: text, level: validDecayLevel)
+        
+        // Only apply text decay in detail view or for very high decay in list view
+        let glitchedText: String
+        if isListView && validDecayLevel < 90 {
+            // Very minimal processing for list views
+            glitchedText = text
+        } else {
+            glitchedText = TextDecayEffect.applyDecay(to: text, level: validDecayLevel)
+        }
         
         return Text(glitchedText)
             .font(GlitchTheme.pixelFont(size: size))
             .foregroundColor(GlitchTheme.colorForDecayLevel(validDecayLevel))
-            .blur(radius: decayFactor > 0.7 ? 0.8 : 0)
+            .blur(radius: isListView ? min(decayFactor * 0.5, 0.5) : (decayFactor > 0.7 ? 0.8 : 0))
             .opacity(TextDecayEffect.opacityEffect(for: validDecayLevel))
             .offset(offset)
-            .modifier(GlitchTheme.RGBSplitModifier(amount: decayFactor > 0.5 ? CGFloat(decayFactor) : 0, angle: 90))
+            // Only apply RGB split in detail view and for significant decay
+            .modifier(GlitchTheme.RGBSplitModifier(
+                amount: isListView ? 0 : (decayFactor > 0.5 ? CGFloat(decayFactor) : 0), 
+                angle: 90
+            ))
             .onAppear {
+                // Skip animation for list views
+                if isListView {
+                    return
+                }
+                
                 // Only apply glitch effects for moderate to heavy decay
                 if validDecayLevel > 40 {
                     // Create a deterministic but random-looking jitter
-                    let seed = abs((text.hashValue + id.hashValue) % 1000)
-                    let magnitude = decayFactor * 3.0
+                    // Fix for arithmetic overflow - use safer calculations
+                    let textHash = abs(text.prefix(20).hashValue) // Limit the text length to prevent massive hash values
+                    let idHash = abs(id.hashValue)
+                    let seed = (textHash % 500) + (idHash % 500) // Avoid potential overflow by using smaller values
+                    let magnitude = min(decayFactor * 3.0, 3.0) // Cap the magnitude
                     
-                    // Fixed offsets based on the seed
-                    let xOffset = (Double(seed % 7) - 3.0) * magnitude 
-                    let yOffset = (Double(seed % 5) - 2.0) * magnitude
+                    // Fixed offsets based on the seed with safer calculations
+                    let xOffset = min(max((Double(seed % 7) - 3.0), -3.0), 3.0) * magnitude 
+                    let yOffset = min(max((Double(seed % 5) - 2.0), -3.0), 3.0) * magnitude
                     
-                    // Ensure values are valid
-                    let safeXOffset = xOffset.isFinite ? xOffset : 0.0
-                    let safeYOffset = yOffset.isFinite ? yOffset : 0.0
+                    // Additional safeguard against invalid values
+                    let safeXOffset = xOffset.isFinite && !xOffset.isNaN ? xOffset : 0.0
+                    let safeYOffset = yOffset.isFinite && !yOffset.isNaN ? yOffset : 0.0
                     
                     // Apply jitter animation for heavily degraded text
                     if decayFactor > 0.6 {
@@ -346,6 +379,7 @@ struct EnhancedRestorationView: View {
     @State private var glitchBlocks: [GlitchBlock] = []
     @State private var showScanPulse = false
     @State private var dataMatrix: [[Bool]] = Array(repeating: Array(repeating: false, count: 20), count: 20)
+    @State private var lastProgressUpdate: Double = 0
     
     struct GlitchBlock: Identifiable {
         let id = UUID()
@@ -370,20 +404,10 @@ struct EnhancedRestorationView: View {
                 ForEach(0..<20, id: \.self) { row in
                     HStack(spacing: 3) {
                         ForEach(0..<20, id: \.self) { column in
-                            let shouldBeRestored = Double((row * 20) + column) / 400.0 <= safeProgress
-                            let isRestored = dataMatrix[row][column]
-                            
                             Rectangle()
-                                .fill(isRestored ? GlitchTheme.glitchCyan : GlitchTheme.cardBackground)
+                                .fill(dataMatrix[row][column] ? GlitchTheme.glitchCyan : GlitchTheme.cardBackground)
                                 .frame(width: 12, height: 12)
-                                .brightness(isRestored && row % 2 == 0 ? 0.1 : 0)
-                                .onChange(of: safeProgress) { _ in
-                                    if shouldBeRestored && !isRestored {
-                                        withAnimation(.easeInOut(duration: 0.1)) {
-                                            dataMatrix[row][column] = true
-                                        }
-                                    }
-                                }
+                                .brightness(dataMatrix[row][column] && row % 2 == 0 ? 0.1 : 0)
                         }
                     }
                 }
@@ -465,9 +489,20 @@ struct EnhancedRestorationView: View {
                     .blur(radius: 3)
             }
         }
+        .onChange(of: safeProgress) { newProgress in
+            // Only update if progress has changed significantly to avoid too many updates
+            if abs(newProgress - lastProgressUpdate) >= 0.02 {
+                updateDataMatrix(for: newProgress)
+                lastProgressUpdate = newProgress
+            }
+        }
         .onAppear {
             // Initialize empty data matrix
             dataMatrix = Array(repeating: Array(repeating: false, count: 20), count: 20)
+            lastProgressUpdate = 0
+            
+            // Initial matrix update
+            updateDataMatrix(for: safeProgress)
             
             // Create the scan line animation
             withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
@@ -498,6 +533,24 @@ struct EnhancedRestorationView: View {
                         }
                     }
                 }
+        }
+    }
+    
+    // Update the entire data matrix at once based on current progress
+    private func updateDataMatrix(for progress: Double) {
+        // Update entire matrix in a single animation
+        withAnimation(.easeInOut(duration: 0.1)) {
+            for row in 0..<20 {
+                for column in 0..<20 {
+                    let cellIndex = (row * 20) + column
+                    let shouldBeRestored = Double(cellIndex) / 400.0 <= progress
+                    
+                    // Only update if needed to minimize state changes
+                    if dataMatrix[row][column] != shouldBeRestored {
+                        dataMatrix[row][column] = shouldBeRestored
+                    }
+                }
+            }
         }
     }
     
