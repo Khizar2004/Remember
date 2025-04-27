@@ -10,5 +10,6 @@
         <attribute name="photoAttachments" optional="YES" attributeType="Binary"/>
         <attribute name="tags" optional="YES" attributeType="Binary"/>
         <attribute name="title" optional="YES" attributeType="String"/>
+        <attribute name="userID" optional="YES" attributeType="String"/>
     </entity>
 </model> 
