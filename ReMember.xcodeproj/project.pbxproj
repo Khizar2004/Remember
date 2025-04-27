@@ -38,9 +38,22 @@
 		2D562D532DA9EFD700C9B0DD /* ReMemberUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ReMemberUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		2D67EE622DBE074500593BB1 /* Exceptions for "ReMember" folder in "ReMember" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 2D562D3B2DA9EFD600C9B0DD /* ReMember */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		2D562D3E2DA9EFD600C9B0DD /* ReMember */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				2D67EE622DBE074500593BB1 /* Exceptions for "ReMember" folder in "ReMember" target */,
+			);
 			path = ReMember;
 			sourceTree = "<group>";
 		};
@@ -423,6 +436,7 @@
 				DEVELOPMENT_TEAM = 282KUML758;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ReMember/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -451,6 +465,7 @@
 				DEVELOPMENT_TEAM = 282KUML758;
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = ReMember/Info.plist;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

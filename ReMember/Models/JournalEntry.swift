@@ -24,8 +24,9 @@ struct JournalEntry: Identifiable {
     var tags: [String] = []
     var photoAttachments: [UUID: URL] = [:] // Store photo URLs keyed by UUID
     var customQuestions: [MemoryQuestion] = [] // Custom memory questions
+    var userID: String? // Firebase user ID
     
-    init(id: UUID = UUID(), title: String, content: String, creationDate: Date = Date(), lastRestoredDate: Date? = nil, decayLevel: Int = 0, tags: [String] = [], photoAttachments: [UUID: URL] = [:], customQuestions: [MemoryQuestion] = []) {
+    init(id: UUID = UUID(), title: String, content: String, creationDate: Date = Date(), lastRestoredDate: Date? = nil, decayLevel: Int = 0, tags: [String] = [], photoAttachments: [UUID: URL] = [:], customQuestions: [MemoryQuestion] = [], userID: String? = nil) {
         self.id = id
         self.title = title
         self.content = content
@@ -35,6 +36,7 @@ struct JournalEntry: Identifiable {
         self.tags = tags
         self.photoAttachments = photoAttachments
         self.customQuestions = customQuestions
+        self.userID = userID
     }
     
     mutating func calculateDecay() {

@@ -1,6 +1,8 @@
 import Foundation
 import CoreData
 import SwiftUI
+import Firebase
+import FirebaseAuth
 
 class JournalEntryStore: ObservableObject {
     @Published var entries: [JournalEntry] = []
@@ -100,6 +102,11 @@ class JournalEntryStore: ObservableObject {
             .appendingPathComponent("Photos", isDirectory: true)
     }
     
+    // Get the current user ID
+    private func getCurrentUserID() -> String? {
+        return Auth.auth().currentUser?.uid
+    }
+    
     func loadEntries() {
         guard isStoreLoaded else {
             print("Cannot load entries - store not ready")
@@ -107,6 +114,13 @@ class JournalEntryStore: ObservableObject {
         }
         
         let request = NSFetchRequest<JournalEntryEntity>(entityName: "JournalEntryEntity")
+        
+        // Filter entries by current user ID if logged in
+        if let currentUserID = getCurrentUserID() {
+            print("Loading entries for user ID: \(currentUserID)")
+            request.predicate = NSPredicate(format: "userID == %@ OR userID == nil", currentUserID)
+        }
+        
         let sortDescriptor = NSSortDescriptor(keyPath: \JournalEntryEntity.creationDate, ascending: false)
         request.sortDescriptors = [sortDescriptor]
         
@@ -154,7 +168,8 @@ class JournalEntryStore: ObservableObject {
                         decayLevel: Int(entity.decayLevel),
                         tags: extractedTags,
                         photoAttachments: photoAttachments,
-                        customQuestions: customQuestions
+                        customQuestions: customQuestions,
+                        userID: entity.userID
                     )
                 }
                 
@@ -194,6 +209,9 @@ class JournalEntryStore: ObservableObject {
         newEntry.creationDate = Date()
         newEntry.decayLevel = 0
         
+        // Store the current user ID with the entry
+        newEntry.userID = getCurrentUserID()
+        
         // Store tags as JSON data
         if let tagsData = try? JSONEncoder().encode(tags) {
             newEntry.tags = tagsData
@@ -230,7 +248,8 @@ class JournalEntryStore: ObservableObject {
             decayLevel: 0,
             tags: tags,
             photoAttachments: photoAttachments,
-            customQuestions: customQuestions
+            customQuestions: customQuestions,
+            userID: newEntry.userID
         )
         
         DispatchQueue.main.async {
@@ -394,5 +413,10 @@ class JournalEntryStore: ObservableObject {
             }
         }
         return Array(allTags).sorted()
+    }
+    
+    // Update entries when the user signs in/out
+    func refreshEntriesForCurrentUser() {
+        loadEntries()
     }
 } 
