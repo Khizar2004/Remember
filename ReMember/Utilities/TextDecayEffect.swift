@@ -1,121 +1,143 @@
 import SwiftUI
 
+/// Utility for applying visual decay effects to text
 struct TextDecayEffect {
+    // Decay effect cache to avoid expensive recalculations
+    private static var decayCache: [String: [String: String]] = [:]
+    private static let cacheLimit = 30 // Limit cache size
     
-    // Cache for processed text to avoid recalculating
-    private static var textCache: [String: [Int: String]] = [:]
-    private static let cacheLimit = 100
-    
-    /// Apply decay effect to text based on decay level
-    /// - Parameters:
-    ///   - text: Original text to decay
-    ///   - decayLevel: Level of decay (0-100)
-    /// - Returns: Decayed text
-    static func applyDecay(to text: String, level decayLevel: Int) -> String {
-        // Ensure valid decay level
-        let validDecayLevel = max(0, min(decayLevel, 100))
-        guard validDecayLevel > 0 else { return text }
-        
-        // Return cached result if available
-        if let cachedResults = textCache[text], let cachedText = cachedResults[validDecayLevel] {
-            return cachedText
-        }
-        
-        // For very long texts, only process the first 300 characters
-        let processText = text.count > 300 ? String(text.prefix(300)) + "..." : text
-        let decayFactor = Double(validDecayLevel) / 100.0
-        
-        var result = processText
-        
-        // Character corruption - use simpler approach for better performance
-        if decayFactor > 0.4 { // Only apply to higher decay levels
-            result = corruptCharacters(in: result, factor: decayFactor)
-        }
-        
-        // No more complex operations for list view performance
-        // Only do character corruption and simplify how we do it
-        
-        // Store in cache
-        if textCache.count > cacheLimit {
-            // Clear oldest entries if cache is too large
-            textCache = [:]
-        }
-        
-        if textCache[text] == nil {
-            textCache[text] = [:]
-        }
-        textCache[text]?[validDecayLevel] = result
-        
-        return result
+    /// Compatibility method for existing code
+    static func applyDecay(to text: String, level: Int) -> String {
+        return applyVisualDecay(text, decay: level)
     }
     
-    // Replace some characters with similar looking ones - simplified for performance
-    private static func corruptCharacters(in text: String, factor: Double) -> String {
-        // Simplified corruption - only do a subset of characters
-        let corruptionMap: [Character: Character] = [
-            "a": "4",
-            "e": "3",
-            "i": "1",
-            "o": "0", 
-            "s": "5"
-        ]
-        
-        // Reduce corruption chance for better performance
-        let corruptionChance = min(factor * 0.3, 0.3) // Max 30% corruption at full decay
-        
-        // Only process if there's a reasonable chance of corruption
-        guard corruptionChance > 0.05 else { return text }
-        
-        var result = ""
-        for char in text {
-            if let replacement = corruptionMap[char.lowercased().first ?? char], 
-               Double.random(in: 0...1) < corruptionChance {
-                result.append(replacement)
-            } else {
-                result.append(char)
-            }
-        }
-        
-        return result
-    }
-    
-    // Calculate the amount of blur to apply based on decay level - simplified
-    static func blurEffect(for decayLevel: Int) -> Double {
-        let validDecayLevel = max(0, min(decayLevel, 100))
-        return Double(validDecayLevel) / 100.0 // Linear scaling, max 1.0
-    }
-    
-    // Calculate the opacity for text based on decay level - simplified
+    /// Returns opacity based on decay level
     static func opacityEffect(for decayLevel: Int) -> Double {
-        let validDecayLevel = max(0, min(decayLevel, 100))
-        return max(1.0 - (Double(validDecayLevel) / 150.0), 0.5) // Min opacity of 0.5 at full decay
+        let baseFactor = max(0.0, 1.0 - (Double(decayLevel) / 120.0))
+        return max(baseFactor, 0.35) // Never go below 0.35 opacity
     }
     
-    // Create a jitter animation for the text
-    static func jitterEffect(for decayLevel: Int) -> Animation? {
-        let validDecayLevel = max(0, min(decayLevel, 100))
-        guard validDecayLevel > 30 else { return nil }
-        
-        let intensity = Double(validDecayLevel) / 100.0
-        let duration = 0.1 + (0.1 * intensity) // Fixed duration to avoid random values
-        
-        return Animation
-            .easeInOut(duration: duration)
-            .repeatForever(autoreverses: true)
+    /// Returns color based on decay level
+    static func colorForDecayLevel(_ decayLevel: Int) -> Color {
+        switch decayLevel {
+        case 0..<25:
+            return GlitchTheme.terminalGreen
+        case 25..<50:
+            return GlitchTheme.glitchCyan
+        case 50..<75:
+            return GlitchTheme.glitchYellow
+        case 75..<90:
+            return GlitchTheme.glitchOrange
+        default:
+            return GlitchTheme.glitchRed
+        }
     }
     
-    // Calculate offset for jittering text
-    static func jitterOffset(for decayLevel: Int) -> CGSize {
-        let validDecayLevel = max(0, min(decayLevel, 100))
-        guard validDecayLevel > 30 else { return .zero }
+    /// Returns blur radius based on decay level
+    static func blurEffect(for decayLevel: Int) -> CGFloat {
+        return min(CGFloat(decayLevel) / 200, 0.5)
+    }
+    
+    /// Returns jitter offset based on decay level
+    static func jitterOffset(for decayLevel: Int) -> CGFloat {
+        guard decayLevel > 85 else { return 0 }
+        return CGFloat.random(in: -1.0...1.0)
+    }
+    
+    /// Returns RGB split amount based on decay level
+    static func rgbSplitAmount(for decayLevel: Int) -> CGFloat {
+        if decayLevel > 95 { return 1.0 }
+        if decayLevel > 90 { return min(CGFloat(decayLevel) / 60, 1.5) }
+        return 0
+    }
+    
+    /// Apply visual decay to a text string based on decay level
+    static func applyVisualDecay(_ text: String, decay: Int, flickerPhase: UUID = UUID()) -> String {
+        let cacheKey = "\(decay)_\(flickerPhase)"
         
-        let intensity = Double(validDecayLevel) / 100.0
-        let maxOffset = min(intensity * 3.0, 3.0)
+        if let cached = decayCache[text]?[cacheKey] {
+            return cached
+        }
         
-        // Fixed offsets to avoid potential NaN from random values
-        return CGSize(
-            width: maxOffset / 2.0,
-            height: maxOffset / 2.0
-        )
+        if decayCache.count > cacheLimit {
+            decayCache.removeAll()
+        }
+        
+        var result = text
+        let decayFactor = Double(decay) / 100.0
+        
+        let timeBasedFlicker = Int(Date().timeIntervalSince1970 * 1000) % 1000
+        
+        let redactionChars = ["█", "▓", "▒", "░", "■", "◼", "◾", "▪", "▇"]
+        
+        let primaryRedaction = redactionChars[timeBasedFlicker % redactionChars.count]
+        let secondaryRedaction = redactionChars[(timeBasedFlicker + 2) % redactionChars.count]
+        
+        let glitchMoment = timeBasedFlicker % 200 < 20
+        
+        // Critical decay - heavy redaction (mostly obscured)
+        if decay >= 95 {
+            var processed = ""
+            for (i, char) in text.enumerated() {
+                if i % 10 == 0 || (char == " " && i % 5 == 0) {
+                    processed.append(char)
+                } else if i % 20 == 0 {
+                    let glyphChars = ["¥", "§", "Æ", "¢", "Ø", "∆", "Ω", "π", "µ"]
+                    processed.append(glyphChars[(i + timeBasedFlicker) % glyphChars.count])
+                } else if glitchMoment && i % 7 == 0 {
+                    let artifacts = ["0", "1", "/", "\\", "|", "~", "_"]
+                    processed.append(artifacts[(i + timeBasedFlicker) % artifacts.count])
+                } else {
+                    processed.append((i + timeBasedFlicker) % 5 == 0 ? secondaryRedaction : primaryRedaction)
+                }
+            }
+            result = processed
+        }
+        // High decay - partial redaction with some glitch characters
+        else if decay >= 85 {
+            var processed = ""
+            for (i, char) in text.enumerated() {
+                if i % 5 == 0 || char == " " || Double.random(in: 0...1) > 0.8 {
+                    processed.append(char)
+                } else if Double.random(in: 0...1) > 0.6 {
+                    let glitchChars = ["#", "@", "$", "%", "&", "*", "!"]
+                    processed.append(glitchChars[(i + timeBasedFlicker) % glitchChars.count])
+                } else if glitchMoment && i % 8 == 0 {
+                    processed.append(char)
+                } else {
+                    processed.append((i + timeBasedFlicker) % 4 == 0 ? secondaryRedaction : primaryRedaction)
+                }
+            }
+            result = processed
+        }
+        // Medium decay - character corruption and slight redaction
+        else if decay >= 75 {
+            var processed = ""
+            for (i, char) in text.enumerated() {
+                let charString = String(char).lowercased()
+                
+                if charString == "a" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("4")
+                } else if charString == "e" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("3")
+                } else if charString == "i" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("1") 
+                } else if charString == "o" && Double.random(in: 0...1) < decayFactor * 0.8 {
+                    processed.append("0")
+                } else if i % 8 == 0 && Double.random(in: 0...1) < decayFactor * 0.5 {
+                    processed.append((i + timeBasedFlicker) % 3 == 0 ? secondaryRedaction : primaryRedaction)
+                } else {
+                    processed.append(char)
+                }
+            }
+            result = processed
+        }
+        
+        if decayCache[text] == nil {
+            decayCache[text] = [:]
+        }
+        decayCache[text]?[cacheKey] = result
+        
+        return result
     }
 } 

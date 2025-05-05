@@ -2,6 +2,8 @@ import Foundation
 import SwiftUI
 import Combine
 import UserNotifications
+import Firebase
+import FirebaseAuth
 
 class HomeViewModel: ObservableObject {
     @Published var store: JournalEntryStore
@@ -14,13 +16,14 @@ class HomeViewModel: ObservableObject {
     @Published var showingAchievements = false // Control for showing achievements view
     @Published var selectedChallengeEntry: JournalEntry? // Entry selected for challenge
     @Published var showingSettings = false // Control for showing settings view
+    @Published var isSyncing: Bool = false
+    @Published var syncMessage: String? = nil
     
     private var cancellables = Set<AnyCancellable>()
     
     var filteredEntries: [JournalEntry] {
         var filtered = store.entries
         
-        // Apply text search filter
         if !searchText.isEmpty {
             filtered = filtered.filter { entry in
                 entry.title.localizedCaseInsensitiveContains(searchText) ||
@@ -28,10 +31,8 @@ class HomeViewModel: ObservableObject {
             }
         }
         
-        // Apply tag filter if any tags are selected
         if !selectedTags.isEmpty {
             filtered = filtered.filter { entry in
-                // Entry must contain at least one of the selected tags
                 return entry.tags.contains { tag in
                     selectedTags.contains(tag)
                 }
@@ -49,7 +50,6 @@ class HomeViewModel: ObservableObject {
         store.getAllTags()
     }
     
-    // Group entries by decay level for timeline visualization
     var entriesByDecayLevel: [DecayGroup] {
         let groups = [
             DecayGroup(name: "Fresh", range: 0..<25, entries: []),
@@ -72,57 +72,101 @@ class HomeViewModel: ObservableObject {
         return result
     }
     
-    // Access the UserAchievements instance
     var userAchievements: UserAchievements? {
         return store.getUserAchievements()
     }
     
+    var isUserLoggedIn: Bool {
+        return Auth.auth().currentUser != nil
+    }
+    
     init(store: JournalEntryStore = JournalEntryStore()) {
         self.store = store
-        print("HomeViewModel initialized with store")
         
-        // Watch for changes in the store's entries
         self.store.$entries
             .sink { [weak self] _ in
-                print("Store entries changed - notifying HomeViewModel")
                 self?.objectWillChange.send()
             }
             .store(in: &cancellables)
         
-        // Watch for changes in at-risk entries
         self.store.$atRiskEntries
             .sink { [weak self] entries in
-                print("At-risk entries changed: \(entries.count)")
                 self?.checkForAtRiskEntries(entries)
             }
             .store(in: &cancellables)
         
-        // Update decay levels periodically
-        Timer.publish(every: 15, on: .main, in: .common) // Every 15 seconds
-            .autoconnect()
-            .sink { [weak self] _ in
-                print("Timer triggered refresh")
-                self?.refreshEntries()
+        self.store.$isSyncing
+            .sink { [weak self] isSyncing in
+                self?.isSyncing = isSyncing
             }
             .store(in: &cancellables)
         
-        // Request notification authorization
+        // Refresh entries and sync with cloud every 15 seconds
+        Timer.publish(every: 15, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                self?.refreshEntries()
+                // Auto-sync with cloud every minute (less frequent than the UI refresh)
+                if Date().timeIntervalSince1970.truncatingRemainder(dividingBy: 60) < 15 {
+                    self?.quietlySyncWithCloud()
+                }
+            }
+            .store(in: &cancellables)
+        
         requestNotificationAuthorization()
+        
+        // Initial sync when app starts
+        DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak self] in
+            self?.quietlySyncWithCloud()
+        }
     }
     
     func refreshEntries() {
-        print("HomeViewModel refreshing entries")
         isLoading = true
         
-        // Force Core Data to reload and update the UI
         store.loadEntries()
         
-        // Update the refresh time
         DispatchQueue.main.async {
             self.lastRefresh = Date()
             self.isLoading = false
             self.objectWillChange.send()
-            print("HomeViewModel completed refresh")
+        }
+    }
+    
+    // Quiet sync without UI indicators - for automatic background sync
+    private func quietlySyncWithCloud() {
+        guard isUserLoggedIn, !isSyncing else { return }
+        
+        Task {
+            do {
+                await store.syncWithCloud()
+            } catch {
+                // Silent failure - no need to log for background operations
+            }
+        }
+    }
+    
+    // Helper function to add timeout to an async operation
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            // Add the main operation
+            group.addTask {
+                try await operation()
+            }
+            
+            // Add a timeout task
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw NSError(domain: "HomeViewModel", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Operation timed out after \(seconds) seconds"
+                ])
+            }
+            
+            // Return the first completed task (either the operation or the timeout)
+            let result = try await group.next()!
+            // Cancel any remaining tasks
+            group.cancelAll()
+            return result
         }
     }
     
@@ -150,10 +194,9 @@ class HomeViewModel: ObservableObject {
     }
     
     func deleteEntry(id: UUID) {
-        // Add a small delay to allow for animation
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
             self.store.deleteEntry(id: id)
-            HapticFeedback.heavy() // Stronger feedback when deletion completes
+            HapticFeedback.heavy()
         }
     }
     
@@ -167,9 +210,7 @@ class HomeViewModel: ObservableObject {
         UNUserNotificationCenter.current().requestAuthorization(options: [.alert, .badge, .sound]) { granted, error in
             DispatchQueue.main.async {
                 self.notificationsAuthorized = granted
-                if granted {
-                    print("Notification authorization granted")
-                } else if let error = error {
+                if let error = error {
                     print("Failed to request notification authorization: \(error)")
                 }
             }
@@ -179,33 +220,25 @@ class HomeViewModel: ObservableObject {
     private func checkForAtRiskEntries(_ entries: [JournalEntry]) {
         guard notificationsAuthorized, !entries.isEmpty else { return }
         
-        // Get the current notification center
         let center = UNUserNotificationCenter.current()
         
-        // Clear existing notifications
         center.removeAllPendingNotificationRequests()
         
-        // Track when we last notified for each entry
         let defaults = UserDefaults.standard
         let lastNotificationTimeKey = "lastNotificationTime"
         let currentTime = Date().timeIntervalSince1970
         
-        // Only notify once per hour at most
-        let notificationThrottleInterval: TimeInterval = 3600 // 1 hour in seconds
+        let notificationThrottleInterval: TimeInterval = 3600
         let lastNotificationTime = defaults.double(forKey: lastNotificationTimeKey)
         
-        // Skip if we've notified recently
         if currentTime - lastNotificationTime < notificationThrottleInterval {
             return
         }
         
-        // Filter to avoid notifying for completely decayed memories (100%)
         let notifiableEntries = entries.filter { $0.decayLevel >= 50 && $0.decayLevel < 100 }
         
-        // Don't notify if no entries in the proper decay range
         guard !notifiableEntries.isEmpty else { return }
         
-        // Create a single grouped notification instead of one per entry
         let content = UNMutableNotificationContent()
         content.title = "Memories at Risk"
         
@@ -217,22 +250,18 @@ class HomeViewModel: ObservableObject {
         }
         content.sound = .default
         
-        // Create a trigger that fires immediately
         let trigger = UNTimeIntervalNotificationTrigger(timeInterval: 1, repeats: false)
         
-        // Create the request with a unique identifier
         let request = UNNotificationRequest(
             identifier: "memory-decay-\(UUID().uuidString)",
             content: content,
             trigger: trigger
         )
         
-        // Add the request to the notification center
         center.add(request) { error in
             if let error = error {
                 print("Error scheduling notification: \(error)")
             } else {
-                // Update the last notification time
                 defaults.set(currentTime, forKey: lastNotificationTimeKey)
             }
         }
@@ -242,27 +271,36 @@ class HomeViewModel: ObservableObject {
         showingDecayTimeline.toggle()
     }
     
-    // Toggle achievements view
     func toggleAchievements() {
-        showingAchievements.toggle()
+        // If showing decay timeline, hide it first
+        if showingDecayTimeline {
+            showingDecayTimeline = false
+            // Small delay to avoid animation conflicts
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.2) {
+                withAnimation(.spring()) {
+                    self.showingAchievements.toggle()
+                }
+            }
+        } else {
+            withAnimation(.spring()) {
+                showingAchievements.toggle()
+            }
+        }
     }
     
-    // Toggle settings view
     func toggleSettings() {
         showingSettings.toggle()
     }
     
-    // Start a memory challenge for an entry
     func startMemoryChallenge(for entry: JournalEntry) {
         selectedChallengeEntry = entry
     }
 }
 
-// Structure to group entries by decay level for visualization
 struct DecayGroup: Identifiable {
-    var id = UUID()
-    var name: String
-    var range: Range<Int>
+    var id: String { name }
+    let name: String
+    let range: Range<Int>
     var entries: [JournalEntry]
     
     var color: Color {
@@ -274,4 +312,4 @@ struct DecayGroup: Identifiable {
         default: return .gray
         }
     }
-} 
+}

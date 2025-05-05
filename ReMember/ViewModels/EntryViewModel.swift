@@ -14,16 +14,13 @@ class EntryViewModel: ObservableObject {
     @Published var newTagText: String = ""
     @Published var showingMemoryChallenge: Bool = false
     
-    // Media attachment properties
     @Published var photoAttachments: [UUID: URL] = [:]
     
-    // Temporary storage for custom questions when creating a new entry
     @Published var customQuestionsForNewEntry: [MemoryQuestion] = []
     
     private let store: JournalEntryStore
     private var restorationTimer: Timer?
     
-    // Public accessor for the store
     var viewModelStore: JournalEntryStore {
         return store
     }
@@ -47,28 +44,21 @@ class EntryViewModel: ObservableObject {
     
     func saveEntry() {
         if isEditing, let existingEntry = entry {
-            // Update existing entry
             var updatedEntry = existingEntry
             updatedEntry.title = title
             updatedEntry.content = content
             updatedEntry.tags = tags
             updatedEntry.photoAttachments = photoAttachments
-            // Make sure we preserve customQuestions from the entry object
-            // customQuestions are updated in the Entry object separately before this call
             store.updateEntry(updatedEntry)
             
-            // Update the entry reference to trigger UI updates
             DispatchQueue.main.async {
-                // Reload the entry from the store to ensure we have the latest version
                 if let index = self.store.entries.firstIndex(where: { $0.id == updatedEntry.id }) {
                     self.entry = self.store.entries[index]
                 }
                 
-                // Force UI update
                 self.objectWillChange.send()
             }
         } else {
-            // Create new entry
             store.addEntry(
                 title: title,
                 content: content,
@@ -78,13 +68,10 @@ class EntryViewModel: ObservableObject {
             )
         }
         
-        // Explicitly reload entries to ensure UI updates
         store.loadEntries()
         
-        // Signal that entry was saved
         entrySaved = true
         
-        // Reset fields if not editing
         if !isEditing {
             title = ""
             content = ""
@@ -110,11 +97,9 @@ class EntryViewModel: ObservableObject {
     func initiateRestoration() {
         guard let entryToRestore = entry else { return }
         
-        // Start restoration animation
         showRestoreAnimation = true
         restorationProgress = 0.0
         
-        // Create restoration animation
         restorationTimer?.invalidate()
         restorationTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
             guard let self = self else { 
@@ -122,26 +107,19 @@ class EntryViewModel: ObservableObject {
                 return 
             }
             
-            // Increase progress
             self.restorationProgress += 0.01
             
-            // Finish restoration
             if self.restorationProgress >= 1.0 {
                 timer.invalidate()
                 self.restorationTimer = nil
                 
-                // Restore memory in the store
                 self.store.restoreEntry(id: entryToRestore.id)
                 
-                // Update local entry reference
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    // Dismiss restoration animation
                     self.showRestoreAnimation = false
                     
-                    // Trigger haptic feedback 
                     HapticFeedback.success()
                     
-                    // Update UI with the restored entry
                     if let index = self.store.entries.firstIndex(where: { $0.id == entryToRestore.id }) {
                         self.entry = self.store.entries[index]
                     }
@@ -158,27 +136,21 @@ class EntryViewModel: ObservableObject {
         let photoURL = store.photoStorageDirectory().appendingPathComponent(fileName)
         
         do {
-            // Create the directory if it doesn't exist
             try FileManager.default.createDirectory(at: store.photoStorageDirectory(), 
                                                    withIntermediateDirectories: true)
             
-            // Write the image data to the file
             try imageData.write(to: photoURL)
             
-            // Store the URL in the dictionary
             photoAttachments[photoID] = photoURL
             
-            // If this is an existing entry, update it immediately
             if isEditing, let existingEntry = entry {
                 var updatedEntry = existingEntry
                 updatedEntry.photoAttachments = photoAttachments
                 
-                // Update the entry in store and refresh local reference
                 DispatchQueue.main.async {
                     self.store.updateEntry(updatedEntry)
                     self.entry = updatedEntry
                     
-                    // Force UI refresh
                     self.objectWillChange.send()
                 }
             }
@@ -200,25 +172,20 @@ class EntryViewModel: ObservableObject {
         }
     }
     
-    // Add this method to make the loadEntries functionality accessible without exposing store directly
     func reloadEntries() {
         store.loadEntries()
     }
     
-    // Start a memory challenge for this entry
     func startMemoryChallenge() {
         showingMemoryChallenge = true
     }
     
-    // Restore memory after successful challenge
     func restoreMemory() {
         guard let entryToRestore = entry else { return }
         
-        // Start restoration animation
         showRestoreAnimation = true
         restorationProgress = 0.0
         
-        // Create restoration animation
         restorationTimer?.invalidate()
         restorationTimer = Timer.scheduledTimer(withTimeInterval: 0.02, repeats: true) { [weak self] timer in
             guard let self = self else { 
@@ -226,26 +193,19 @@ class EntryViewModel: ObservableObject {
                 return 
             }
             
-            // Increase progress
             self.restorationProgress += 0.01
             
-            // Finish restoration
             if self.restorationProgress >= 1.0 {
                 timer.invalidate()
                 self.restorationTimer = nil
                 
-                // Restore memory in the store
                 self.store.restoreEntry(id: entryToRestore.id)
                 
-                // Update local entry reference
                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                    // Dismiss restoration animation
                     self.showRestoreAnimation = false
                     
-                    // Trigger haptic feedback 
                     HapticFeedback.success()
                     
-                    // Update UI with the restored entry
                     if let index = self.store.entries.firstIndex(where: { $0.id == entryToRestore.id }) {
                         self.entry = self.store.entries[index]
                     }
@@ -253,4 +213,4 @@ class EntryViewModel: ObservableObject {
             }
         }
     }
-} 
+}

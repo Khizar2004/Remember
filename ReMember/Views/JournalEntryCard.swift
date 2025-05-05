@@ -175,23 +175,19 @@ struct JournalEntryCard: View {
         .onAppear {
             // Initialize store and start flicker timer
             viewModel.initializeStore()
-            
-            // Start flicker timer for redaction effects with higher priority
+
             self.flickerTimer = Timer.scheduledTimer(withTimeInterval: 0.05, repeats: true) { _ in
                 // Always update the flicker phase regardless of press state
                 self.flickerPhase = UUID()
             }
-            
-            // Make sure the timer runs on a high-priority runloop mode
+
             RunLoop.current.add(self.flickerTimer!, forMode: .common)
         }
         .onDisappear {
-            // Clean up timer
             flickerTimer?.invalidate()
             flickerTimer = nil
         }
         .simultaneousGesture(
-            // Track when the card is being pressed
             DragGesture(minimumDistance: 0)
                 .updating($isPressed) { _, state, _ in
                     state = true
