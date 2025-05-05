@@ -1,20 +1,12 @@
 import SwiftUI
-import Firebase
 import GoogleSignIn
 
 struct LoginView: View {
-    // Environment object for the authentication manager
     @EnvironmentObject var authManager: AuthManager
-    
-    // For navigation
     @State private var isShowingSignUp = false
     @State private var isShowingResetPassword = false
-    
-    // Form data
     @State private var email = ""
     @State private var password = ""
-    
-    // Validation states
     @State private var showError = false
     @State private var errorMessage = ""
     

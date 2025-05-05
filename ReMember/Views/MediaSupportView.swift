@@ -9,13 +9,11 @@ struct PhotoPickerView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 16) {
-            // Section Header
             Text("MEMORY ATTACHMENTS")
                 .font(.system(.headline, design: .monospaced))
                 .foregroundColor(.cyan)
                 .shadow(color: .cyan.opacity(0.8), radius: 2, x: 0, y: 0)
             
-            // Display existing photo attachments in a grid
             if !viewModel.photoAttachments.isEmpty {
                 ScrollView(.horizontal, showsIndicators: false) {
                     LazyHGrid(rows: [GridItem(.flexible())], spacing: 10) {
@@ -30,7 +28,6 @@ struct PhotoPickerView: View {
                 }
             }
             
-            // Photo picker button - styled to match the aesthetic
             PhotosPicker(selection: $selectedItems, matching: .images) {
                 HStack {
                     Image(systemName: "photo.badge.plus")
@@ -51,9 +48,7 @@ struct PhotoPickerView: View {
             .onChange(of: selectedItems) { newItems in
                 Task {
                     for item in newItems {
-                        // Try to get the image data
                         if let data = try? await item.loadTransferable(type: Data.self) {
-                            // Add the photo attachment on the main thread
                             DispatchQueue.main.async {
                                 let _ = viewModel.addPhotoAttachment(imageData: data)
                                 
@@ -62,7 +57,6 @@ struct PhotoPickerView: View {
                             }
                         }
                     }
-                    // Reset selection
                     selectedItems = []
                 }
             }
@@ -80,7 +74,6 @@ struct PhotoThumbnailView: View {
     
     var body: some View {
         ZStack(alignment: .topTrailing) {
-            // Container for image with styling
             ZStack {
                 if let uiImage = loadImage(from: photoURL) {
                     Image(uiImage: uiImage)

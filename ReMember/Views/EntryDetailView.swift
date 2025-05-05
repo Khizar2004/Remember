@@ -21,12 +21,9 @@ struct EntryDetailView: View {
     
     var body: some View {
         ZStack {
-            // Deep background
             GlitchTheme.background.edgesIgnoringSafeArea(.all)
             
-            // Main content
             VStack(alignment: .leading, spacing: 20) {
-                // Terminal-style header
                 HStack {
                     Button(action: {
                         presentationMode.wrappedValue.dismiss()
@@ -50,8 +47,6 @@ struct EntryDetailView: View {
                     }
                     
                     Spacer()
-                    
-                    // Memory fragment ID
                     if let entry = viewModel.entry {
                         Text("FRAGMENT #\(entry.id.uuidString.prefix(8))")
                             .font(GlitchTheme.terminalFont(size: 12))
@@ -60,8 +55,6 @@ struct EntryDetailView: View {
                     }
                     
                     Spacer()
-                    
-                    // Edit button with terminal styling
                     Button(action: {
                         if let entry = viewModel.entry, entry.decayLevel > editDecayThreshold {
                             // Show warning for heavily decayed memories
@@ -91,21 +84,16 @@ struct EntryDetailView: View {
                 }
                 .padding(.top, 20)
                 
-                // Display content as a corrupted memory terminal
                 ScrollView {
                     VStack(alignment: .leading, spacing: 20) {
-                        // Title with glitch effect
                         if let entry = viewModel.entry {
-                            // Status header
                             HStack {
-                                // Corruption status indicator
                                 HStack(spacing: 3) {
                                     Circle()
                                         .fill(GlitchTheme.colorForDecayLevel(entry.decayLevel))
                                         .frame(width: 8, height: 8)
                                         .screenFlicker(intensity: Double(entry.decayLevel) / 100.0)
                                     
-                                    // Split into two text elements to prevent redaction of the percentage
                                     Text("MEMORY STABILITY:")
                                         .font(GlitchTheme.terminalFont(size: 12))
                                         .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
@@ -126,7 +114,6 @@ struct EntryDetailView: View {
                                 
                                 Spacer()
                                 
-                                // Technical readout - smaller font size and fixed size
                                 Text("SYS.DECRYPT STATUS: \(entry.decayLevel > 50 ? "DEGRADED" : "NOMINAL")")
                                     .font(GlitchTheme.terminalFont(size: 9))
                                     .foregroundColor(entry.decayLevel > 50 ? GlitchTheme.glitchRed : GlitchTheme.glitchCyan)
@@ -138,14 +125,12 @@ struct EntryDetailView: View {
                             .frame(height: 30) // Fixed height to prevent bouncing
                             .id("statusHeader") // Stable ID for layout
                             
-                            // Title display with high emphasis
                             VStack(alignment: .leading, spacing: 4) {
                                 Text("ENTRY DESIGNATION:")
                                     .font(GlitchTheme.terminalFont(size: 12))
                                     .foregroundColor(GlitchTheme.glitchYellow.opacity(0.7))
                                 
                                 if entry.decayLevel >= 75 {
-                                    // For heavily decayed titles, use the visually rich technique
                                     Text(obscureTextByDecay(entry.title, decay: entry.decayLevel))
                                         .font(GlitchTheme.pixelFont(size: 26))
                                         .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
@@ -154,7 +139,6 @@ struct EntryDetailView: View {
                                         .offset(x: entry.decayLevel > 90 ? entryChaosOffset() * 0.8 : 0)
                                         .rgbSplit(amount: entry.decayLevel > 90 ? min(CGFloat(entry.decayLevel) / 60, 1.5) : 0, angle: 90)
                                 } else {
-                                    // For less decayed titles, use regular text with decay color
                                     Text(entry.title)
                                         .font(GlitchTheme.pixelFont(size: 26))
                                         .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
@@ -163,7 +147,6 @@ struct EntryDetailView: View {
                             }
                             .padding(.vertical, 5)
                             
-                            // Creation info with terminal styling
                             VStack(alignment: .leading, spacing: 12) {
                                 HStack(spacing: 8) {
                                     Text("TIMESTAMP:")
@@ -175,7 +158,6 @@ struct EntryDetailView: View {
                                         .foregroundColor(GlitchTheme.terminalGreen)
                                 }
                                 
-                                // Last restored info if available
                                 if let restored = entry.lastRestoredDate {
                                     HStack(spacing: 8) {
                                         Text("DEFRAGMENTED:")
@@ -190,13 +172,11 @@ struct EntryDetailView: View {
                             }
                             .padding(.vertical, 5)
                             
-                            // Divider with terminal styling
                             Rectangle()
                                 .fill(GlitchTheme.colorForDecayLevel(entry.decayLevel).opacity(0.3))
                                 .frame(height: 1)
                                 .padding(.vertical, 10)
                             
-                            // Data visualization representation
                             HStack(spacing: 2) {
                                 ForEach(0..<min(20, entry.content.count/20), id: \.self) { index in
                                     let dataDecay = min(entry.decayLevel + Int.random(in: -10...10), 100)
@@ -208,14 +188,12 @@ struct EntryDetailView: View {
                             }
                             .padding(.bottom, 10)
                             
-                            // Entry content with glitch effects
                             VStack(alignment: .leading, spacing: 6) {
                                 Text("MEMORY CONTENT:")
                                     .font(GlitchTheme.terminalFont(size: 12))
                                     .foregroundColor(GlitchTheme.glitchYellow.opacity(0.7))
                                 
                                 if entry.decayLevel >= 75 {
-                                    // For heavily decayed content, use visually rich but efficient glitch effect
                                     Text(obscureTextByDecay(entry.content, decay: entry.decayLevel))
                                         .font(GlitchTheme.pixelFont(size: 16))
                                         .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
@@ -225,14 +203,12 @@ struct EntryDetailView: View {
                                         .rgbSplit(amount: entry.decayLevel > 85 ? min(CGFloat(entry.decayLevel) / 50, 1.8) : 0, angle: 90)
                                         .digitalNoise(intensity: min(Double(entry.decayLevel) / 200, 0.4))
                                 } else {
-                                    // For less decayed content, use the full GlitchedText
                                     GlitchedText(text: entry.content, decayLevel: entry.decayLevel, size: 16, isListView: false)
                                         .lineSpacing(6)
                                         .glitchBlocks(intensity: Double(entry.decayLevel) / 200)
                                 }
                             }
                             
-                            // Display attached photos if any
                             if let entry = viewModel.entry, !entry.photoAttachments.isEmpty {
                                 VStack(alignment: .leading, spacing: 16) {
                                     Text("MEMORY FRAGMENTS")
@@ -256,7 +232,6 @@ struct EntryDetailView: View {
                                 .id(entry.photoAttachments.count)
                             }
                             
-                            // Tags section
                             if !entry.tags.isEmpty {
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("MEMORY CLASSIFICATION:")
@@ -299,24 +274,18 @@ struct EntryDetailView: View {
                 
                 Spacer()
                 
-                // Enhanced restore button - only show if decay is present
                 if let entry = viewModel.entry, entry.decayLevel > 10 {
                     if entry.decayLevel >= 50 {
-                        // For high decay, use memory challenge if there are questions
                         Button(action: {
                             if entry.hasProtectionQuestions {
-                                // Start memory challenge
                                 viewModel.startMemoryChallenge()
                             } else {
-                                // Direct restore for memories without questions
                                 viewModel.initiateRestoration()
                                 
-                                // Add glitch effect animation on restore
                                 withAnimation(.easeInOut(duration: 0.3)) {
                                     glitchIntensity = 3.0
                                 }
                                 
-                                // Return to normal after animation
                                 DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                     withAnimation(.easeOut(duration: 0.5)) {
                                         glitchIntensity = 0.0
@@ -333,7 +302,6 @@ struct EntryDetailView: View {
                                     Spacer()
                                 }
                                 
-                                // Add technical detail for immersion
                                 Text("[SYS.RECONSTRUCT.SEQUENCE]")
                                     .font(GlitchTheme.terminalFont(size: 10))
                                     .foregroundColor(GlitchTheme.background.opacity(0.7))
@@ -350,16 +318,13 @@ struct EntryDetailView: View {
                             .digitalNoise(intensity: 0.2)
                         }
                     } else {
-                        // For low decay, use direct restore
                         Button(action: {
                             viewModel.initiateRestoration()
                             
-                            // Add glitch effect animation on restore
                             withAnimation(.easeInOut(duration: 0.3)) {
                                 glitchIntensity = 3.0
                             }
                             
-                            // Return to normal after animation
                             DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                 withAnimation(.easeOut(duration: 0.5)) {
                                     glitchIntensity = 0.0
@@ -375,7 +340,6 @@ struct EntryDetailView: View {
                                     Spacer()
                                 }
                                 
-                                // Add technical detail for immersion
                                 Text("[SYS.RECONSTRUCT.SEQUENCE]")
                                     .font(GlitchTheme.terminalFont(size: 10))
                                     .foregroundColor(GlitchTheme.background.opacity(0.7))
@@ -396,13 +360,11 @@ struct EntryDetailView: View {
             }
             .padding(.horizontal)
             
-            // Apply CRT effects and static
             Color.black.opacity(0.03)
                 .allowsHitTesting(false)
                 .ignoresSafeArea()
                 .screenFlicker(intensity: 0.2)
             
-            // Add RGB split for heavily degraded entries or when restoring
             if let entry = viewModel.entry, entry.decayLevel > 60 || glitchIntensity > 0 {
                 Color.clear
                     .allowsHitTesting(false)
@@ -412,9 +374,7 @@ struct EntryDetailView: View {
                     .blendMode(.screen)
             }
             
-            // Custom memory corruption alert overlay
             if showingEditWarning {
-                // Semi-transparent background overlay
                 Color.black.opacity(0.7)
                     .edgesIgnoringSafeArea(.all)
                     .onTapGesture {
@@ -422,7 +382,6 @@ struct EntryDetailView: View {
                         // showingEditWarning = false
                     }
                 
-                // Alert content
                 VStack(spacing: 20) {
                     Text("MEMORY CORRUPTION CRITICAL")
                         .font(GlitchTheme.terminalFont(size: 22))
@@ -435,26 +394,20 @@ struct EntryDetailView: View {
                         .multilineTextAlignment(.center)
                         .padding(.horizontal)
                     
-                    // Larger, more accessible buttons
                     VStack(spacing: 16) {
                         Button(action: {
-                            // RESTORE action
                             showingEditWarning = false
                             
                             if let entry = viewModel.entry {
                                 if entry.decayLevel >= 50 && entry.hasProtectionQuestions {
-                                    // For high decay and has questions, launch the challenge
                                     viewModel.startMemoryChallenge()
                                 } else {
-                                    // For lower decay or no questions, use direct restore
                                     viewModel.initiateRestoration()
                                     
-                                    // Add glitch effect animation on restore
                                     withAnimation(.easeInOut(duration: 0.3)) {
                                         glitchIntensity = 3.0
                                     }
                                     
-                                    // Return to normal after animation
                                     DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
                                         withAnimation(.easeOut(duration: 0.5)) {
                                             glitchIntensity = 0.0
@@ -474,7 +427,6 @@ struct EntryDetailView: View {
                         .buttonStyle(PlainButtonStyle())
                         
                         Button(action: {
-                            // UNDERSTOOD action - just dismiss
                             showingEditWarning = false
                         }) {
                             Text("UNDERSTOOD")

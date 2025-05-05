@@ -4,7 +4,7 @@ import CoreImage.CIFilterBuiltins
 
 /// GlitchTheme contains all visual styling for Re:Member's retro-futuristic glitched memory terminal aesthetic
 struct GlitchTheme {
-    // MARK: - Colors
+    // Colors
     
     // Main palette - dark blue-black base with neon highlights
     static let background = Color(red: 0.05, green: 0.05, blue: 0.1) // Deep blue-black
@@ -13,12 +13,13 @@ struct GlitchTheme {
     static let glitchCyan = Color(red: 0.1, green: 0.9, blue: 0.9) // Cyan for highlights
     static let glitchRed = Color(red: 0.9, green: 0.2, blue: 0.2) // Red for critical errors/high decay
     static let glitchYellow = Color(red: 0.9, green: 0.8, blue: 0.2) // Warning color
+    static let glitchOrange = Color(red: 0.95, green: 0.5, blue: 0.1) // Orange for high decay
     
     // UI element backgrounds
     static let cardBackground = Color(red: 0.08, green: 0.09, blue: 0.15).opacity(0.7) // Semi-transparent
     static let fieldBackground = Color(red: 0.1, green: 0.1, blue: 0.2).opacity(0.5) // Input fields
     
-    // MARK: - Fonts
+    // Fonts
     
     // Terminal style fonts
     static func terminalFont(size: CGFloat) -> Font {
@@ -27,7 +28,6 @@ struct GlitchTheme {
     }
     
     static func pixelFont(size: CGFloat) -> Font {
-        // Use custom monospaced font for pixel look
         let scaledSize = UIFontMetrics.default.scaledValue(for: size)
         if let descriptor = UIFont.monospacedSystemFont(ofSize: scaledSize, weight: .regular).fontDescriptor
             .withDesign(.monospaced) {
@@ -42,7 +42,7 @@ struct GlitchTheme {
         return Font.custom("Menlo", size: scaledSize).monospaced().weight(.bold)
     }
 
-    // MARK: - Decay Effects
+    // Decay Effects
     
     // Color mapping for decay levels (0-100)
     static func colorForDecayLevel(_ level: Int) -> Color {
@@ -50,14 +50,12 @@ struct GlitchTheme {
         let decayFactor = Double(validLevel) / 100.0
         
         if decayFactor < 0.3 {
-            // Low decay: green to cyan
             return Color(
                 red: 0.0,
                 green: 0.9 - (decayFactor * 0.3),
                 blue: 0.4 + (decayFactor * 1.0)
             )
         } else if decayFactor < 0.7 {
-            // Medium decay: cyan to magenta
             let normalizedFactor = (decayFactor - 0.3) / 0.4
             return Color(
                 red: normalizedFactor * 0.9,
@@ -65,7 +63,6 @@ struct GlitchTheme {
                 blue: 0.7
             )
         } else {
-            // High decay: magenta to red
             let normalizedFactor = (decayFactor - 0.7) / 0.3
             return Color(
                 red: 0.9,
@@ -75,7 +72,7 @@ struct GlitchTheme {
         }
     }
     
-    // MARK: - View Modifiers
+    // View Modifiers
     
     // Nostalgic CRT effect with scanlines
     struct CRTEffectModifier: ViewModifier {
@@ -88,7 +85,6 @@ struct GlitchTheme {
                 .background(background)
                 .overlay(
                     ZStack {
-                        // CRT scanlines - closer together for authentic look
                         VStack(spacing: 1) {
                             ForEach(0..<100, id: \.self) { _ in
                                 Rectangle()
@@ -97,9 +93,8 @@ struct GlitchTheme {
                             }
                         }
                         .mask(Rectangle())
-                        .allowsHitTesting(false) // Ensure overlay doesn't block interaction
+                        .allowsHitTesting(false) 
                         
-                        // Screen burn/glow effect
                         RadialGradient(
                             gradient: Gradient(
                                 colors: [
@@ -111,15 +106,14 @@ struct GlitchTheme {
                             startRadius: 50,
                             endRadius: 400
                         )
-                        .allowsHitTesting(false) // Ensure overlay doesn't block interaction
+                        .allowsHitTesting(false) 
                         
-                        // Static noise effect instead of trying to load image
                         Rectangle()
                             .fill(
                                 Color.white.opacity(0.02 * safeIntensity)
                             )
                             .blendMode(.overlay)
-                            .allowsHitTesting(false) // Ensure overlay doesn't block interaction
+                            .allowsHitTesting(false) 
                     }
                 )
                 .compositingGroup()
@@ -138,7 +132,6 @@ struct GlitchTheme {
             return content
                 .overlay(
                     ZStack {
-                        // Red channel
                         content
                             .colorMultiply(.red)
                             .opacity(0.8)
@@ -148,7 +141,6 @@ struct GlitchTheme {
                             )
                             .blendMode(.screen)
                         
-                        // Green channel
                         content
                             .colorMultiply(.green)
                             .opacity(0.8)
@@ -158,7 +150,6 @@ struct GlitchTheme {
                             )
                             .blendMode(.screen)
                         
-                        // Blue channel
                         content
                             .colorMultiply(.blue)
                             .opacity(0.8)
@@ -225,7 +216,6 @@ struct GlitchTheme {
             ZStack {
                 content
                 
-                // Only render glitch blocks if intensity is significant
                 if intensity > 0.1, isVisible {
                     ForEach(blocks) { block in
                         Rectangle()
@@ -236,10 +226,8 @@ struct GlitchTheme {
                 }
             }
             .onAppear {
-                // Only activate if intensity is significant
                 guard intensity > 0.3 else { return }
                 
-                // Create random glitch blocks - limited number for performance
                 let blockCount = min(Int(intensity * 3), 5) // Limit to max 5 blocks
                 blocks = (0..<blockCount).map { _ in
                     GlitchBlock(
@@ -251,7 +239,6 @@ struct GlitchTheme {
                     )
                 }
                 
-                // Animate the blocks but only if intensity is high enough for better performance
                 if intensity > 0.5 {
                     withAnimation(Animation.easeInOut(duration: 0.2).repeatForever(autoreverses: true)) {
                         isVisible = true
@@ -299,7 +286,6 @@ struct GlitchedText: View {
     @State private var glitchPhase = false
     private let id = UUID()
     
-    // Initialize with default isListView = false for backward compatibility
     init(text: String, decayLevel: Int, size: CGFloat, isListView: Bool = false) {
         self.text = text
         self.decayLevel = decayLevel
@@ -311,10 +297,8 @@ struct GlitchedText: View {
         let validDecayLevel = max(0, min(decayLevel, 100))
         let decayFactor = Double(validDecayLevel) / 100.0
         
-        // Only apply text decay in detail view or for very high decay in list view
         let glitchedText: String
         if isListView && validDecayLevel < 90 {
-            // Very minimal processing for list views
             glitchedText = text
         } else {
             glitchedText = TextDecayEffect.applyDecay(to: text, level: validDecayLevel)
@@ -326,47 +310,38 @@ struct GlitchedText: View {
             .blur(radius: isListView ? min(decayFactor * 0.5, 0.5) : (decayFactor > 0.7 ? 0.8 : 0))
             .opacity(TextDecayEffect.opacityEffect(for: validDecayLevel))
             .offset(offset)
-            // Only apply RGB split in detail view and for significant decay
             .modifier(GlitchTheme.RGBSplitModifier(
                 amount: isListView ? 0 : (decayFactor > 0.5 ? CGFloat(decayFactor) : 0), 
                 angle: 90
             ))
             .onAppear {
-                // Skip animation for list views
                 if isListView {
                     return
                 }
                 
-                // Only apply glitch effects for moderate to heavy decay
                 if validDecayLevel > 40 {
-                    // Create a deterministic but random-looking jitter
-                    // Fix for arithmetic overflow - use safer calculations
-                    let textHash = abs(text.prefix(20).hashValue) // Limit the text length to prevent massive hash values
+                    let textHash = abs(text.prefix(20).hashValue) 
                     let idHash = abs(id.hashValue)
-                    let seed = (textHash % 500) + (idHash % 500) // Avoid potential overflow by using smaller values
-                    let magnitude = min(decayFactor * 3.0, 3.0) // Cap the magnitude
+                    let seed = (textHash % 500) + (idHash % 500) 
+                    let magnitude = min(decayFactor * 3.0, 3.0) 
                     
-                    // Fixed offsets based on the seed with safer calculations
                     let xOffset = min(max((Double(seed % 7) - 3.0), -3.0), 3.0) * magnitude 
                     let yOffset = min(max((Double(seed % 5) - 2.0), -3.0), 3.0) * magnitude
                     
-                    // Additional safeguard against invalid values
                     let safeXOffset = xOffset.isFinite && !xOffset.isNaN ? xOffset : 0.0
                     let safeYOffset = yOffset.isFinite && !yOffset.isNaN ? yOffset : 0.0
                     
-                    // Apply jitter animation for heavily degraded text
                     if decayFactor > 0.6 {
                         withAnimation(Animation.easeInOut(duration: 0.2).repeatForever(autoreverses: true)) {
                             offset = CGSize(width: safeXOffset, height: safeYOffset)
                             glitchPhase = true
                         }
                     } else {
-                        // Static offset for moderately degraded text
                         offset = CGSize(width: safeXOffset / 2, height: safeYOffset / 2)
                     }
                 }
             }
-            .id(text + String(validDecayLevel)) // Ensure effect recalculates when text/level changes
+            .id(text + String(validDecayLevel))
     }
 }
 
@@ -394,12 +369,10 @@ struct EnhancedRestorationView: View {
         let safeProgress = max(0.0, min(progress, 1.0))
         
         ZStack {
-            // Background with grid overlay
             Rectangle()
                 .fill(GlitchTheme.background)
                 .opacity(0.9)
             
-            // Matrix grid visualization
             VStack(spacing: 3) {
                 ForEach(0..<20, id: \.self) { row in
                     HStack(spacing: 3) {
@@ -416,7 +389,6 @@ struct EnhancedRestorationView: View {
             .offset(glitchOffset)
             .blur(radius: 0.5)
             
-            // Horizontal scan effect
             Rectangle()
                 .fill(
                     LinearGradient(
@@ -434,7 +406,6 @@ struct EnhancedRestorationView: View {
                 .opacity(0.8)
                 .blur(radius: 1)
             
-            // Restoration progress data
             VStack {
                 Text("MEMORY DEFRAGMENTATION")
                     .font(GlitchTheme.terminalFont(size: 18))
@@ -472,7 +443,6 @@ struct EnhancedRestorationView: View {
                     .stroke(GlitchTheme.glitchCyan, lineWidth: 1)
             )
             
-            // Random glitch blocks
             ForEach(glitchBlocks) { block in
                 Rectangle()
                     .fill(block.color)
@@ -480,7 +450,6 @@ struct EnhancedRestorationView: View {
                     .position(x: block.x, y: block.y)
             }
             
-            // Scan pulse
             if showScanPulse {
                 Circle()
                     .stroke(GlitchTheme.glitchCyan, lineWidth: 1)
@@ -490,42 +459,34 @@ struct EnhancedRestorationView: View {
             }
         }
         .onChange(of: safeProgress) { newProgress in
-            // Only update if progress has changed significantly to avoid too many updates
             if abs(newProgress - lastProgressUpdate) >= 0.02 {
                 updateDataMatrix(for: newProgress)
                 lastProgressUpdate = newProgress
             }
         }
         .onAppear {
-            // Initialize empty data matrix
             dataMatrix = Array(repeating: Array(repeating: false, count: 20), count: 20)
             lastProgressUpdate = 0
             
-            // Initial matrix update
             updateDataMatrix(for: safeProgress)
             
-            // Create the scan line animation
             withAnimation(Animation.linear(duration: 2).repeatForever(autoreverses: false)) {
                 scanPosition = 400
             }
             
-            // Create random glitch blocks that appear/disappear
             updateGlitchBlocks()
             
-            // Timer for periodic glitch updates
             Timer.publish(every: 0.3, on: .main, in: .common)
                 .autoconnect()
                 .sink { _ in
                     updateGlitchOffset()
                     updateGlitchBlocks()
                     
-                    // Show scan pulse occasionally
                     if Bool.random() && safeProgress > 0.3 {
                         withAnimation(.easeOut(duration: 0.5)) {
                             showScanPulse = true
                         }
                         
-                        // Hide after a delay
                         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
                             withAnimation {
                                 showScanPulse = false
@@ -536,16 +497,13 @@ struct EnhancedRestorationView: View {
         }
     }
     
-    // Update the entire data matrix at once based on current progress
     private func updateDataMatrix(for progress: Double) {
-        // Update entire matrix in a single animation
         withAnimation(.easeInOut(duration: 0.1)) {
             for row in 0..<20 {
                 for column in 0..<20 {
                     let cellIndex = (row * 20) + column
                     let shouldBeRestored = Double(cellIndex) / 400.0 <= progress
                     
-                    // Only update if needed to minimize state changes
                     if dataMatrix[row][column] != shouldBeRestored {
                         dataMatrix[row][column] = shouldBeRestored
                     }
@@ -554,7 +512,6 @@ struct EnhancedRestorationView: View {
         }
     }
     
-    // Update glitch offset for jitter effect
     private func updateGlitchOffset() {
         withAnimation(.easeInOut(duration: 0.1)) {
             let offsetX = CGFloat.random(in: -3...3)
@@ -563,15 +520,12 @@ struct EnhancedRestorationView: View {
         }
     }
     
-    // Update glitch blocks
     private func updateGlitchBlocks() {
         withAnimation(.easeInOut(duration: 0.1)) {
-            // Clear existing blocks sometimes
             if Bool.random() {
                 glitchBlocks = []
             }
             
-            // Add new blocks based on progress
             let blockCount = Int((1.0 - progress) * 10)
             let newBlocks = (0..<blockCount).map { _ in
                 GlitchBlock(

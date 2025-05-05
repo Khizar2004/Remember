@@ -1,5 +1,4 @@
 import SwiftUI
-import Firebase
 
 struct ResetPasswordView: View {
     // Environment object for authentication
@@ -14,11 +13,9 @@ struct ResetPasswordView: View {
     
     var body: some View {
         ZStack {
-            // Background
             GlitchTheme.background
                 .ignoresSafeArea()
             
-            // Use ScrollView to handle keyboard better
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
                     // Title with glitch effect

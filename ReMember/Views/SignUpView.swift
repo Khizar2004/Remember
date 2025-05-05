@@ -1,5 +1,4 @@
 import SwiftUI
-import Firebase
 
 struct SignUpView: View {
     // Environment object for authentication
@@ -17,11 +16,9 @@ struct SignUpView: View {
     
     var body: some View {
         ZStack {
-            // Background
             GlitchTheme.background
                 .ignoresSafeArea()
             
-            // Use ScrollView to handle keyboard better
             ScrollView(.vertical, showsIndicators: false) {
                 VStack(spacing: 20) {
                     // Title with glitch effect
@@ -36,7 +33,6 @@ struct SignUpView: View {
                         .foregroundColor(GlitchTheme.glitchCyan)
                         .padding(.bottom, 20)
                     
-                    // Registration form
                     VStack(spacing: 15) {
                         // Email field - fixed height
                         ZStack(alignment: .leading) {
@@ -151,7 +147,6 @@ struct SignUpView: View {
                     }
                     .padding(.horizontal, 30)
                     
-                    // Add extra space at the bottom
                     Spacer(minLength: 50)
                 }
                 .padding()

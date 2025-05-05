@@ -11,6 +11,7 @@
 		2DE7F0C42DAEE8BE0037FD07 /* FirebaseAuth in Frameworks */ = {isa = PBXBuildFile; productRef = 2DE7F0C32DAEE8BE0037FD07 /* FirebaseAuth */; };
 		2DE7F0C62DAEE8BE0037FD07 /* FirebaseCore in Frameworks */ = {isa = PBXBuildFile; productRef = 2DE7F0C52DAEE8BE0037FD07 /* FirebaseCore */; };
 		2DE7F0C82DAEE8BE0037FD07 /* FirebaseFirestore in Frameworks */ = {isa = PBXBuildFile; productRef = 2DE7F0C72DAEE8BE0037FD07 /* FirebaseFirestore */; };
+		2DE7F0CA2DAEE8BE0037FD07 /* FirebaseStorage in Frameworks */ = {isa = PBXBuildFile; productRef = 2DE7F0C92DAEE8BE0037FD07 /* FirebaseStorage */; };
 		2DE7F0D02DAEEAB50037FD07 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 2DE7F0CF2DAEEAB50037FD07 /* GoogleSignIn */; };
 		2DE7F0D22DAEEAB50037FD07 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 2DE7F0D12DAEEAB50037FD07 /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
@@ -77,6 +78,7 @@
 				2DE7F0D02DAEEAB50037FD07 /* GoogleSignIn in Frameworks */,
 				2DE7F0C22DAEE8BE0037FD07 /* FirebaseAnalytics in Frameworks */,
 				2DE7F0C82DAEE8BE0037FD07 /* FirebaseFirestore in Frameworks */,
+				2DE7F0CA2DAEE8BE0037FD07 /* FirebaseStorage in Frameworks */,
 				2DE7F0D22DAEEAB50037FD07 /* GoogleSignInSwift in Frameworks */,
 				2DE7F0C62DAEE8BE0037FD07 /* FirebaseCore in Frameworks */,
 				2DE7F0C42DAEE8BE0037FD07 /* FirebaseAuth in Frameworks */,
@@ -146,6 +148,7 @@
 				2DE7F0C72DAEE8BE0037FD07 /* FirebaseFirestore */,
 				2DE7F0CF2DAEEAB50037FD07 /* GoogleSignIn */,
 				2DE7F0D12DAEEAB50037FD07 /* GoogleSignInSwift */,
+				2DE7F0C92DAEE8BE0037FD07 /* FirebaseStorage */,
 			);
 			productName = ReMember;
 			productReference = 2D562D3C2DA9EFD600C9B0DD /* ReMember.app */;
@@ -632,6 +635,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = 2DE7F0C02DAEE8BE0037FD07 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
 			productName = FirebaseFirestore;
+		};
+		2DE7F0C92DAEE8BE0037FD07 /* FirebaseStorage */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 2DE7F0C02DAEE8BE0037FD07 /* XCRemoteSwiftPackageReference "firebase-ios-sdk" */;
+			productName = FirebaseStorage;
 		};
 		2DE7F0CF2DAEEAB50037FD07 /* GoogleSignIn */ = {
 			isa = XCSwiftPackageProductDependency;
