@@ -43,10 +43,17 @@ The glitchy, retro aesthetic is not just a style choice - it's a metaphor for ho
 
 I hope you find this project both useful and thought-provoking. Your memories deserve to be remembered.
 
+## Connect
+
+Got thoughts, feedback, or just want to say hey?  
+Shoot me an email at [khizaraamir2004@gmail.com](mailto:khizaraamir2004@gmail.com) — I’d love to hear from you!
+
 ## License
 
-[MIT License](LICENSE)
+This project is licensed under the MIT License.
 
-## Credits
+---
 
-Created with ❤️ by Khizar Aamir 
+<p align="center">
+  Built with ❤️ by <a href="https://github.com/Khizar2004">Khizar</a>
+</p>
