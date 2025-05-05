@@ -13,6 +13,44 @@ A journey through fading memories. Re:member is a pixel-art themed journaling ap
 - **Offline Mode**: Create and edit memories even without internet connection
 - **Media Attachments**: Add photos to preserve your visual memories
 
+## Screenshots
+
+<details>
+<summary><strong>Home Screen</strong></summary>
+<br>
+<img src="assets/screenshots/homeScreen.png" alt="Home Screen" width="300"/>
+</details>
+
+<details>
+<summary><strong>New Memory</strong></summary>
+<br>
+<img src="assets/screenshots/newMemoryScreen.png" alt="New Memory Screen" width="300"/>
+<img src="assets/screenshots/newMemoryScreen2.png" alt="New Memory Screen Additional" width="300"/>
+</details>
+
+<details>
+<summary><strong>Memory States</strong></summary>
+<br>
+<img src="assets/screenshots/uncorruptedMemoryScreen.png" alt="Uncorrupted Memory" width="300"/>
+<img src="assets/screenshots/corruptedMemoryScreen.png" alt="Corrupted Memory" width="300"/>
+</details>
+
+<details>
+<summary><strong>Memory Recovery</strong></summary>
+<br>
+<img src="assets/screenshots/recoveryQuestionScreen.png" alt="Recovery Question" width="300"/>
+<img src="assets/screenshots/memoryRecoveredScreen.png" alt="Memory Recovered" width="300"/>
+<img src="assets/screenshots/defragmentAnimationScreen.png" alt="Defragment Animation" width="300"/>
+</details>
+
+<details>
+<summary><strong>Other Features</strong></summary>
+<br>
+<img src="assets/screenshots/achievementsScreen.png" alt="Achievements" width="300"/>
+<img src="assets/screenshots/settingsScreen.png" alt="Settings" width="300"/>
+<img src="assets/screenshots/loadingScreen.png" alt="Loading Screen" width="300"/>
+</details>
+
 ## Technical Details
 
 - **Language & Framework**: Swift and SwiftUI for a modern iOS experience
