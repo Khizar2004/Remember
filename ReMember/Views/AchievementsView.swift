@@ -2,12 +2,15 @@ import SwiftUI
 
 struct AchievementsView: View {
     @ObservedObject var userAchievements: UserAchievements
-    @Environment(\.presentationMode) var presentationMode
+    var onDismiss: () -> Void
     
     var body: some View {
         ZStack {
-            // Background
-            GlitchTheme.background.ignoresSafeArea()
+            Color.black.opacity(0.5)
+                .ignoresSafeArea()
+                .onTapGesture {
+                    // Empty tap gesture to capture taps
+                }
             
             VStack(spacing: 0) {
                 // Header
@@ -19,7 +22,7 @@ struct AchievementsView: View {
                     Spacer()
                     
                     Button(action: {
-                        presentationMode.wrappedValue.dismiss()
+                        onDismiss()
                     }) {
                         Image(systemName: "xmark.circle.fill")
                             .font(.system(size: 24))
@@ -86,12 +89,16 @@ struct AchievementsView: View {
                     .padding(.bottom, 20)
                 }
             }
+            .background(GlitchTheme.background)
+            .cornerRadius(16)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 40)
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .navigationBarHidden(true)
     }
     
-    // Stats card component
-    private func statsCard(title: String, value: String, icon: String, color: Color) -> some View {
+    // Stats card component - moved outside body
+    func statsCard(title: String, value: String, icon: String, color: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: icon)
@@ -183,8 +190,8 @@ struct AchievementCard: View {
                 .overlay(
                     RoundedRectangle(cornerRadius: 10)
                         .stroke(
-                            achievement.isUnlocked ? 
-                                GlitchTheme.glitchCyan.opacity(0.5) : 
+                            achievement.isUnlocked ?
+                            GlitchTheme.glitchCyan.opacity(0.5) :
                                 GlitchTheme.terminalGreen.opacity(0.3),
                             lineWidth: 1
                         )
@@ -214,4 +221,4 @@ struct AchievementCard: View {
         formatter.timeStyle = .none
         return formatter.string(from: date)
     }
-} 
+}

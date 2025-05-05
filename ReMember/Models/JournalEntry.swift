@@ -1,5 +1,4 @@
 import Foundation
-import SwiftUI
 
 // Custom question structure
 struct MemoryQuestion: Identifiable, Codable {
@@ -54,7 +53,7 @@ struct JournalEntry: Identifiable {
         let unitsElapsed = Double(minutesSinceLastUpdate) / timeUnit.minuteMultiplier
         
         // Apply decay rate - 5 points per unit (day, hour, or minute)
-        // For minutes: 5 points per minute (very fast decay for testing)
+        // For minutes: 5 points per minute (very fast decay for testing purposes mostly)
         let decayRate = 5.0
         decayLevel = min(Int(unitsElapsed * decayRate), 100)
     }

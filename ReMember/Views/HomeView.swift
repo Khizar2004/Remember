@@ -11,210 +11,22 @@ struct HomeView: View {
     @State private var entryToDelete: UUID?
     
     var body: some View {
+        mainContentView
+    }
+    
+    // MARK: - Component Views
+    
+    private var mainContentView: some View {
         NavigationStack {
             ZStack {
                 // Background
                 GlitchTheme.background.ignoresSafeArea()
                 
                 // Main content
-                VStack(spacing: 0) {
-                    // Fixed header section - total height is constant
-                    VStack(spacing: 0) {
-                        // App title and status
-                        HStack {
-                    Text("RE:MEMBER")
-                                .font(GlitchTheme.terminalFont(size: 28))
-                                .foregroundColor(GlitchTheme.terminalGreen)
-                                .fixedSize()
-                            
-                            Spacer()
-                            
-                            HStack(spacing: 8) {
-                                Button(action: {
-                                    viewModel.toggleSettings()
-                                }) {
-                                    Image(systemName: "gear")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(GlitchTheme.glitchCyan)
-                                }
-                                
-                                Circle()
-                                    .fill(GlitchTheme.glitchCyan)
-                                    .frame(width: 8, height: 8)
-                                
-                                Text("SYS:ACTIVE")
-                                    .font(GlitchTheme.terminalFont(size: 12))
-                                    .foregroundColor(GlitchTheme.glitchCyan)
-                                    .fixedSize()
-                            }
-                        }
-                        .padding(.top, 10)
-                        .padding(.horizontal, 16)
-                        .frame(height: 44) // Fixed height
-                        
-                        // Search field - fixed height
-                        ZStack(alignment: .leading) {
-                            Rectangle()
-                                .fill(GlitchTheme.fieldBackground)
-                                .cornerRadius(4)
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .stroke(GlitchTheme.glitchCyan.opacity(0.5), lineWidth: 1)
-                                )
-                            
-                            HStack(spacing: 2) {
-                                Text(">")
-                                    .font(GlitchTheme.terminalFont(size: 16))
-                                    .foregroundColor(GlitchTheme.terminalGreen)
-                                    .frame(width: 20, alignment: .center)
-                                    .padding(.leading, 8)
-                                
-                                TextField("", text: $viewModel.searchText)
-                                    .font(GlitchTheme.terminalFont(size: 16))
-                                    .foregroundColor(GlitchTheme.terminalGreen)
-                                    .accentColor(GlitchTheme.glitchCyan)
-                            .autocapitalization(.none)
-                            .disableAutocorrection(true)
-                                    .placeholder(when: viewModel.searchText.isEmpty) {
-                                        Text("SEARCH MEMORY DATABASE")
-                                            .font(GlitchTheme.terminalFont(size: 16))
-                                            .foregroundColor(GlitchTheme.terminalGreen.opacity(0.6))
-                                    }
-                                
-                                Spacer()
-                                
-                        Button(action: {
-                            viewModel.refreshEntries()
-                                    DispatchQueue.main.async {
-                                        HapticFeedback.light()
-                                    }
-                                }) {
-                                    Image(systemName: "arrow.triangle.2.circlepath")
-                                        .foregroundColor(GlitchTheme.glitchCyan)
-                                        .frame(width: 24, height: 24)
-                                        .contentShape(Rectangle())
-                                }
-                                .padding(.trailing, 8)
-                            }
-                        }
-                        .frame(height: 44) // Fixed height
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        
-                        // Status bar - fixed height
-                        HStack {
-                            Text("MEMORY FRAGMENTS: \(viewModel.store.entries.count)")
-                                .font(GlitchTheme.terminalFont(size: 12))
-                                .foregroundColor(GlitchTheme.glitchCyan)
-                                .fixedSize(horizontal: false, vertical: true)
-                            
-                            Spacer()
-                            
-                            Text(formatDate(Date()))
-                                .font(GlitchTheme.terminalFont(size: 10))
-                                .foregroundColor(GlitchTheme.glitchYellow)
-                                .fixedSize()
-                        }
-                        .frame(height: 20) // Fixed height
-                        .padding(.horizontal, 16)
-                        .padding(.top, 8)
-                        .padding(.bottom, 8)
-                    }
-                    .background(Color.black.opacity(0.2)) // Subtle background for header section
-                    .frame(height: 132) // Fixed total height (44 + 44 + 20 + padding)
-                    
-                    // Add tag filtering section if there are tags
-                    if !viewModel.availableTags.isEmpty {
-                        TagsContainerView(viewModel: viewModel)
-                    }
-                    
-                    // Content area
-                    if viewModel.filteredEntries.isEmpty {
-                        Spacer()
-                        VStack(spacing: 30) {
-                            Image(systemName: "externaldrive.badge.xmark")
-                                .font(.system(size: 40))
-                                .foregroundColor(GlitchTheme.glitchCyan)
-                            
-                            Text("NO MEMORY FRAGMENTS DETECTED")
-                                .font(GlitchTheme.terminalFont(size: 18))
-                                .foregroundColor(GlitchTheme.glitchYellow)
-                                .padding()
-                                .frame(height: 30)
-                            
-                            Button(action: {
-                                showingNewEntryView = true
-                            }) {
-                                Text("CREATE NEW MEMORY FRAGMENT")
-                                    .font(GlitchTheme.terminalFont(size: 16))
-                                    .foregroundColor(GlitchTheme.background)
-                                    .padding()
-                                    .background(GlitchTheme.glitchCyan)
-                                    .cornerRadius(4)
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 4)
-                                            .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
-                                    )
-                            }
-                        }
-                        Spacer()
-                    } else {
-                        // Entries list - using List for proper swipe action support
-                        List {
-                                ForEach(viewModel.filteredEntries) { entry in
-                                ZStack {
-                                    GlitchedEntryCard(entry: entry)
-                                }
-                                .contentShape(Rectangle())
-                                        .onTapGesture {
-                                            selectedEntry = entry
-                                        }
-                                .listRowBackground(Color.clear)
-                                .listRowSeparator(.hidden)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
-                                .frame(height: entry.tags.isEmpty ? 140 : 160)
-                                .swipeActions(edge: .trailing) {
-                                    Button {
-                                        entryToDelete = entry.id
-                                        showingDeleteConfirmation = true
-                                        HapticFeedback.light()
-                                    } label: {
-                                        Label("DELETE", systemImage: "trash")
-                                    }
-                                    .tint(GlitchTheme.glitchRed)
-                                }
-                            }
-                        }
-                        .listStyle(.plain)
-                        .background(GlitchTheme.background)
-                        .scrollContentBackground(.hidden)
-                        .environment(\.defaultMinListRowHeight, 0)
-                    }
-                }
+                contentStack
                 
                 // Floating add button
-                VStack {
-                    Spacer()
-                    HStack {
-                        Spacer()
-                        Button(action: {
-                            showingNewEntryView = true
-                        }) {
-                            ZStack {
-                                Circle()
-                                    .fill(GlitchTheme.glitchCyan)
-                                    .frame(width: 60, height: 60)
-                                
-                            Image(systemName: "plus")
-                                    .font(.system(size: 24, weight: .bold))
-                                    .foregroundColor(GlitchTheme.background)
-                            }
-                            .contentShape(Circle())
-                        }
-                        .shadow(color: GlitchTheme.glitchCyan.opacity(0.6), radius: 8, x: 0, y: 4)
-                        .padding([.bottom, .trailing], 30)
-                    }
-                }
+                floatingAddButton
                 
                 // Boot sequence overlay
                 if !bootupComplete {
@@ -228,17 +40,8 @@ struct HomeView: View {
                 // Initial boot sequence
                 if !bootupComplete {
                     startBootSequence()
-                    
-                    // Fallback completion
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
-                        if !bootupComplete {
-                            print("Forcing boot completion")
-                            bootupComplete = true
-                            viewModel.refreshEntries()
-                        }
-                    }
                 } else {
-                viewModel.refreshEntries()
+                    viewModel.refreshEntries()
                 }
             }
             .sheet(isPresented: $showingNewEntryView, onDismiss: {
@@ -290,41 +93,15 @@ struct HomeView: View {
                 ToolbarItem(placement: .primaryAction) {
                     HStack {
                         Button(action: {
-                            viewModel.toggleSettings()
-                        }) {
-                            Label("Settings", systemImage: "gear")
-                        }
-                        
-                        Button(action: {
                             viewModel.toggleDecayTimeline()
                         }) {
                             Label("Memory Decay", systemImage: "chart.bar.fill")
-                        }
-                        
-                        Button(action: {
-                            viewModel.toggleAchievements()
-                        }) {
-                            Label("Achievements", systemImage: "trophy.fill")
                         }
                     }
                 }
             }
         }
-        .overlay(
-            Group {
-                if viewModel.showingDecayTimeline {
-                    DecayTimelineView(viewModel: viewModel)
-                        .transition(.move(edge: .bottom))
-                }
-                
-                if viewModel.showingAchievements, let achievements = viewModel.userAchievements {
-                    AchievementsView(userAchievements: achievements)
-                        .transition(.move(edge: .bottom))
-                }
-            }
-            .animation(.spring(), value: viewModel.showingDecayTimeline)
-            .animation(.spring(), value: viewModel.showingAchievements)
-        )
+        .overlay(overlayViews)
         .sheet(item: $viewModel.selectedChallengeEntry) { entry in
             let challenge = MemoryChallenge(entry: entry) { success in
                 if success {
@@ -339,6 +116,257 @@ struct HomeView: View {
             SettingsView()
         }
     }
+    
+    private var contentStack: some View {
+        VStack(spacing: 0) {
+            // Fixed header section - total height is constant
+            headerSection
+            
+            // Add tag filtering section if there are tags
+            if !viewModel.availableTags.isEmpty {
+                TagsContainerView(viewModel: viewModel)
+            }
+            
+            // Content area
+            if viewModel.filteredEntries.isEmpty {
+                emptyStateView
+            } else {
+                entriesList
+            }
+        }
+    }
+    
+    private var headerSection: some View {
+        VStack(spacing: 0) {
+            // App title and status
+            HStack {
+                Text("RE:MEMBER")
+                    .font(GlitchTheme.terminalFont(size: 28))
+                    .foregroundColor(GlitchTheme.terminalGreen)
+                    .fixedSize()
+                
+                Spacer()
+                
+                HStack(spacing: 8) {
+                    Button(action: {
+                        viewModel.toggleAchievements()
+                    }) {
+                        Image(systemName: "trophy.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(GlitchTheme.glitchYellow)
+                            .padding(5)
+                            .background(Circle().fill(GlitchTheme.fieldBackground.opacity(0.5)))
+                    }
+                    
+                    Button(action: {
+                        viewModel.toggleSettings()
+                    }) {
+                        Image(systemName: "gear")
+                            .font(.system(size: 16))
+                            .foregroundColor(GlitchTheme.glitchCyan)
+                    }
+                    
+                    Circle()
+                        .fill(GlitchTheme.glitchCyan)
+                        .frame(width: 8, height: 8)
+                    
+                    Text("SYS:ACTIVE")
+                        .font(GlitchTheme.terminalFont(size: 12))
+                        .foregroundColor(GlitchTheme.glitchCyan)
+                        .fixedSize()
+                }
+            }
+            .padding(.top, 10)
+            .padding(.horizontal, 16)
+            .frame(height: 44) // Fixed height
+            
+            // Search field - fixed height
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(GlitchTheme.fieldBackground)
+                    .cornerRadius(4)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 4)
+                            .stroke(GlitchTheme.glitchCyan.opacity(0.5), lineWidth: 1)
+                    )
+                
+                HStack(spacing: 2) {
+                    Text(">")
+                        .font(GlitchTheme.terminalFont(size: 16))
+                        .foregroundColor(GlitchTheme.terminalGreen)
+                        .frame(width: 20, alignment: .center)
+                        .padding(.leading, 8)
+                    
+                    TextField("", text: $viewModel.searchText)
+                        .font(GlitchTheme.terminalFont(size: 16))
+                        .foregroundColor(GlitchTheme.terminalGreen)
+                        .accentColor(GlitchTheme.glitchCyan)
+                        .autocapitalization(.none)
+                        .disableAutocorrection(true)
+                        .placeholder(when: viewModel.searchText.isEmpty) {
+                            Text("SEARCH MEMORY DATABASE")
+                                .font(GlitchTheme.terminalFont(size: 16))
+                                .foregroundColor(GlitchTheme.terminalGreen.opacity(0.6))
+                        }
+                    
+                    Spacer()
+                    
+                    Button(action: {
+                        viewModel.refreshEntries()
+                        DispatchQueue.main.async {
+                            HapticFeedback.light()
+                        }
+                    }) {
+                        Image(systemName: "arrow.triangle.2.circlepath")
+                            .foregroundColor(GlitchTheme.glitchCyan)
+                            .frame(width: 24, height: 24)
+                            .contentShape(Rectangle())
+                    }
+                    .padding(.trailing, 8)
+                }
+            }
+            .frame(height: 44) // Fixed height
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            
+            // Status bar - fixed height
+            HStack {
+                Text("MEMORY FRAGMENTS: \(viewModel.store.entries.count)")
+                    .font(GlitchTheme.terminalFont(size: 12))
+                    .foregroundColor(GlitchTheme.glitchCyan)
+                    .fixedSize(horizontal: false, vertical: true)
+                
+                Spacer()
+                
+                Text(formatDate(Date()))
+                    .font(GlitchTheme.terminalFont(size: 10))
+                    .foregroundColor(GlitchTheme.glitchYellow)
+                    .fixedSize()
+            }
+            .frame(height: 20) // Fixed height
+            .padding(.horizontal, 16)
+            .padding(.top, 8)
+            .padding(.bottom, 8)
+        }
+        .background(Color.black.opacity(0.2)) // Subtle background for header section
+        .frame(height: 132) // Fixed total height (44 + 44 + 20 + padding)
+    }
+    
+    private var emptyStateView: some View {
+        VStack {
+            Spacer()
+            VStack(spacing: 30) {
+                Image(systemName: "externaldrive.badge.xmark")
+                    .font(.system(size: 40))
+                    .foregroundColor(GlitchTheme.glitchCyan)
+                
+                Text("NO MEMORY FRAGMENTS DETECTED")
+                    .font(GlitchTheme.terminalFont(size: 18))
+                    .foregroundColor(GlitchTheme.glitchYellow)
+                    .padding()
+                    .frame(height: 30)
+                
+                Button(action: {
+                    showingNewEntryView = true
+                }) {
+                    Text("CREATE NEW MEMORY FRAGMENT")
+                        .font(GlitchTheme.terminalFont(size: 16))
+                        .foregroundColor(GlitchTheme.background)
+                        .padding()
+                        .background(GlitchTheme.glitchCyan)
+                        .cornerRadius(4)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 4)
+                                .stroke(GlitchTheme.terminalGreen, lineWidth: 1)
+                        )
+                }
+            }
+            Spacer()
+        }
+    }
+    
+    private var entriesList: some View {
+        List {
+            ForEach(viewModel.filteredEntries) { entry in
+                ZStack {
+                    GlitchedEntryCard(entry: entry)
+                }
+                .contentShape(Rectangle())
+                .onTapGesture {
+                    selectedEntry = entry
+                }
+                .listRowBackground(Color.clear)
+                .listRowSeparator(.hidden)
+                .listRowInsets(EdgeInsets(top: 6, leading: 16, bottom: 6, trailing: 16))
+                .frame(height: entry.tags.isEmpty ? 140 : 160)
+                .swipeActions(edge: .trailing) {
+                    Button {
+                        entryToDelete = entry.id
+                        showingDeleteConfirmation = true
+                        HapticFeedback.light()
+                    } label: {
+                        Label("DELETE", systemImage: "trash")
+                    }
+                    .tint(GlitchTheme.glitchRed)
+                }
+            }
+        }
+        .listStyle(.plain)
+        .background(GlitchTheme.background)
+        .scrollContentBackground(.hidden)
+        .environment(\.defaultMinListRowHeight, 0)
+    }
+    
+    private var floatingAddButton: some View {
+        VStack {
+            Spacer()
+            HStack {
+                Spacer()
+                Button(action: {
+                    showingNewEntryView = true
+                }) {
+                    ZStack {
+                        Circle()
+                            .fill(GlitchTheme.glitchCyan)
+                            .frame(width: 60, height: 60)
+                        
+                        Image(systemName: "plus")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(GlitchTheme.background)
+                    }
+                    .contentShape(Circle())
+                }
+                .shadow(color: GlitchTheme.glitchCyan.opacity(0.6), radius: 8, x: 0, y: 4)
+                .padding([.bottom, .trailing], 30)
+            }
+        }
+    }
+    
+    private var overlayViews: some View {
+        Group {
+            if viewModel.showingDecayTimeline {
+                DecayTimelineView(viewModel: viewModel)
+                    .transition(.move(edge: .bottom))
+            }
+            
+            if viewModel.showingAchievements, let achievements = viewModel.userAchievements {
+                AchievementsView(
+                    userAchievements: achievements,
+                    onDismiss: {
+                        withAnimation(.spring()) {
+                            viewModel.showingAchievements = false
+                        }
+                    }
+                )
+                .transition(.opacity)
+                .zIndex(100) // Ensure achievements view is on top
+            }
+        }
+        .animation(.spring(), value: viewModel.showingDecayTimeline)
+        .animation(.spring(), value: viewModel.showingAchievements)
+    }
+    
+    // MARK: - Helper Methods
     
     // Simulate system boot sequence
     private func startBootSequence() {
@@ -477,7 +505,6 @@ struct BootSequenceView: View {
             // Fallback timer to ensure boot always completes
             DispatchQueue.main.asyncAfter(deadline: .now() + 10.0) {
                 if !complete {
-                    print("Boot sequence fallback triggered")
                     complete = true
                 }
             }
@@ -562,11 +589,11 @@ struct GlitchedEntryCard: View {
             HStack {
                 if entry.decayLevel > 75 {
                     // Use optimized glitch effect for titles with high decay
-                    Text(applyVisualDecay(entry.title, decay: entry.decayLevel))
+                    Text(TextDecayEffect.applyVisualDecay(entry.title, decay: entry.decayLevel, flickerPhase: flickerPhase))
                         .font(GlitchTheme.terminalFont(size: 18))
-                        .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                        .foregroundColor(TextDecayEffect.colorForDecayLevel(entry.decayLevel))
                         .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
-                        .blur(radius: min(CGFloat(entry.decayLevel) / 200, 0.5))
+                        .blur(radius: TextDecayEffect.blurEffect(for: entry.decayLevel))
                         .offset(x: entry.decayLevel > 85 ? jitterOffset : 0)
                         .lineLimit(1)
                         .frame(height: 24)
@@ -592,16 +619,16 @@ struct GlitchedEntryCard: View {
             // Content preview - fixed height
             if entry.decayLevel > 80 {
                 // Use optimized glitch effect for content with high decay
-                Text(applyVisualDecay(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content, decay: entry.decayLevel))
+                Text(TextDecayEffect.applyVisualDecay(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content, decay: entry.decayLevel, flickerPhase: flickerPhase))
                     .font(GlitchTheme.pixelFont(size: 14))
-                    .foregroundColor(GlitchTheme.colorForDecayLevel(entry.decayLevel))
+                    .foregroundColor(TextDecayEffect.colorForDecayLevel(entry.decayLevel))
                     .opacity(TextDecayEffect.opacityEffect(for: entry.decayLevel))
-                    .blur(radius: min(CGFloat(entry.decayLevel) / 200, 0.5))
+                    .blur(radius: TextDecayEffect.blurEffect(for: entry.decayLevel))
                     .offset(x: entry.decayLevel > 90 ? jitterOffset * 1.5 : 0)
                     .lineLimit(3)
                     .frame(height: 60, alignment: .top)
                     // Only add RGB split at critical decay levels (>90)
-                    .rgbSplit(amount: entry.decayLevel > 90 ? min(CGFloat(entry.decayLevel) / 60, 1.5) : 0, angle: 90)
+                    .rgbSplit(amount: TextDecayEffect.rgbSplitAmount(for: entry.decayLevel), angle: 90)
             } else {
                 // Use simple styling for low decay
                 Text(entry.content.count > 100 ? String(entry.content.prefix(100)) + "..." : entry.content)
@@ -731,125 +758,6 @@ struct GlitchedEntryCard: View {
         let formatter = DateFormatter()
         formatter.dateFormat = "MM.dd.yy HH:mm"
         return formatter.string(from: date)
-    }
-    
-    // Helper to apply both visual glitching and text redaction based on decay level
-    private func applyVisualDecay(_ text: String, decay: Int) -> String {
-        // Basic text corruption cache - avoid expensive operations on same text
-        // Text structure caching - no need to regenerate the same patterns
-        struct DecayCache {
-            static var cache: [String: [String: String]] = [:]
-            static let limit = 30 // Limit cache size
-        }
-        
-        // Generate cache key using both decay and current flicker phase for dynamic changes
-        let cacheKey = "\(decay)_\(flickerPhase)"
-        
-        // Check cache first
-        if let cached = DecayCache.cache[text]?[cacheKey] {
-            return cached
-        }
-        
-        // Clean cache if too large
-        if DecayCache.cache.count > DecayCache.limit {
-            DecayCache.cache.removeAll()
-        }
-        
-        var result = text
-        let decayFactor = Double(decay) / 100.0
-        
-        // Get current milliseconds for flickering
-        let timeBasedFlicker = Int(Date().timeIntervalSince1970 * 1000) % 1000
-        
-        // Array of different redaction characters for flickering effect
-        let redactionChars = ["█", "▓", "▒", "░", "■", "◼", "◾", "▪", "▇"]
-        
-        // Select primary and secondary redaction characters based on flicker phase
-        let primaryRedaction = redactionChars[timeBasedFlicker % redactionChars.count]
-        let secondaryRedaction = redactionChars[(timeBasedFlicker + 2) % redactionChars.count]
-        
-        // Determine if we're in a glitch moment (brief visual artifact)
-        let glitchMoment = timeBasedFlicker % 200 < 20 // Occasional glitch
-        
-        // Apply effects based on decay level
-        if decay >= 95 {
-            // Critical decay - heavy redaction (mostly obscured)
-            var processed = ""
-            for (i, char) in text.enumerated() {
-                if i % 10 == 0 || (char == " " && i % 5 == 0) {
-                    processed.append(char) // Keep some characters visible
-                } else if i % 20 == 0 {
-                    // Add rare glitch char for visual interest
-                    let glyphChars = ["¥", "§", "Æ", "¢", "Ø", "∆", "Ω", "π", "µ"]
-                    processed.append(glyphChars[(i + timeBasedFlicker) % glyphChars.count])
-                } else if glitchMoment && i % 7 == 0 {
-                    // During glitch moments, add digital artifacts
-                    let artifacts = ["0", "1", "/", "\\", "|", "~", "_"]
-                    processed.append(artifacts[(i + timeBasedFlicker) % artifacts.count])
-                } else {
-                    // Primary or secondary redaction with flickering
-                    processed.append((i + timeBasedFlicker) % 5 == 0 ? secondaryRedaction : primaryRedaction)
-                }
-            }
-            result = processed
-        }
-        else if decay >= 85 {
-            // High decay - partial redaction with some glitch characters
-            var processed = ""
-            for (i, char) in text.enumerated() {
-                if i % 5 == 0 || char == " " || Double.random(in: 0...1) > 0.8 {
-                    processed.append(char)
-                } else if Double.random(in: 0...1) > 0.6 {
-                    // Add occasional glitch char for variety
-                    let glitchChars = ["#", "@", "$", "%", "&", "*", "!"]
-                    processed.append(glitchChars[(i + timeBasedFlicker) % glitchChars.count])
-                } else if glitchMoment && i % 8 == 0 {
-                    // Occasionally let characters "bleed through" during glitch moments
-                    processed.append(char)
-                } else {
-                    // Flickering redaction
-                    processed.append((i + timeBasedFlicker) % 4 == 0 ? secondaryRedaction : primaryRedaction)
-                }
-            }
-            result = processed
-        }
-        else if decay >= 75 {
-            // Medium decay - character corruption and slight redaction
-            var processed = ""
-            for (i, char) in text.enumerated() {
-                let charString = String(char).lowercased()
-                
-                if charString == "a" && Double.random(in: 0...1) < decayFactor * 0.8 {
-                    processed.append("4")
-                } else if charString == "e" && Double.random(in: 0...1) < decayFactor * 0.8 {
-                    processed.append("3")
-                } else if charString == "i" && Double.random(in: 0...1) < decayFactor * 0.8 {
-                    processed.append("1") 
-                } else if charString == "o" && Double.random(in: 0...1) < decayFactor * 0.8 {
-                    processed.append("0")
-                } else if i % 8 == 0 && Double.random(in: 0...1) < decayFactor * 0.5 {
-                    // Flickering redaction for medium decay
-                    processed.append((i + timeBasedFlicker) % 3 == 0 ? secondaryRedaction : primaryRedaction)
-                } else {
-                    processed.append(char)
-                }
-            }
-            result = processed
-        }
-        
-        // Cache result
-        if DecayCache.cache[text] == nil {
-            DecayCache.cache[text] = [:]
-        }
-        DecayCache.cache[text]?[cacheKey] = result
-        
-        return result
-    }
-    
-    func triggerDeleteAnimation() {
-        withAnimation(.easeInOut(duration: 0.8)) {
-            isDeleting = true
-        }
     }
 }
 

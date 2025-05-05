@@ -1,12 +1,13 @@
 import Foundation
 import CoreData
-import SwiftUI
 import Firebase
 import FirebaseAuth
+import FirebaseFirestore
 
 class JournalEntryStore: ObservableObject {
     @Published var entries: [JournalEntry] = []
     @Published var atRiskEntries: [JournalEntry] = [] // Track entries at risk of decaying
+    @Published var isSyncing = false
     
     // Track if core data is ready
     private var isStoreLoaded = false
@@ -21,7 +22,6 @@ class JournalEntryStore: ObservableObject {
     private var userAchievements: UserAchievements?
     
     init() {
-        print("Initializing JournalEntryStore")
         container = NSPersistentContainer(name: "ReMember")
         
         // Create the directory for the data model if it doesn't exist
@@ -34,7 +34,6 @@ class JournalEntryStore: ObservableObject {
         if let modelURL = modelURL, !FileManager.default.fileExists(atPath: modelURL.path) {
             do {
                 try FileManager.default.createDirectory(at: url!, withIntermediateDirectories: true, attributes: nil)
-                print("Created directory for Core Data store")
             } catch {
                 print("Error creating directory: \(error)")
             }
@@ -60,13 +59,11 @@ class JournalEntryStore: ObservableObject {
                     if let err = err {
                         print("Failed to create in-memory store: \(err)")
                     } else {
-                        print("Created in-memory store as fallback")
                         self.isStoreLoaded = true
                         self.loadEntries()
                     }
                 }
             } else {
-                print("Core Data loaded successfully")
                 self.isStoreLoaded = true
                 
                 // Load entries immediately after successful store loading
@@ -90,7 +87,6 @@ class JournalEntryStore: ObservableObject {
         
         do {
             try fileManager.createDirectory(at: photosURL, withIntermediateDirectories: true)
-            print("Created media directories")
         } catch {
             print("Error creating media directories: \(error)")
         }
@@ -117,7 +113,6 @@ class JournalEntryStore: ObservableObject {
         
         // Filter entries by current user ID if logged in
         if let currentUserID = getCurrentUserID() {
-            print("Loading entries for user ID: \(currentUserID)")
             request.predicate = NSPredicate(format: "userID == %@ OR userID == nil", currentUserID)
         }
         
@@ -126,7 +121,6 @@ class JournalEntryStore: ObservableObject {
         
         do {
             let fetchedEntities = try container.viewContext.fetch(request)
-            print("Fetched \(fetchedEntities.count) entries from Core Data")
             
             // Use DispatchQueue.main to ensure UI updates properly
             DispatchQueue.main.async {
@@ -183,7 +177,6 @@ class JournalEntryStore: ObservableObject {
                 
                 // Force objectWillChange notification to update any observing views
                 self.objectWillChange.send()
-                print("Updated entries array with \(self.entries.count) entries")
             }
         } catch {
             print("Failed to fetch entries: \(error.localizedDescription)")
@@ -195,8 +188,6 @@ class JournalEntryStore: ObservableObject {
     }
     
     func addEntry(title: String, content: String, tags: [String] = [], photoAttachments: [UUID: URL] = [:], customQuestions: [MemoryQuestion] = []) {
-        print("Adding new entry with title: \(title)")
-        
         guard isStoreLoaded else {
             print("Cannot add entry - store not ready")
             return
@@ -259,6 +250,17 @@ class JournalEntryStore: ObservableObject {
             // Force view update
             self.objectWillChange.send()
         }
+        
+        // Upload to cloud
+        if Auth.auth().currentUser != nil {
+            Task {
+                do {
+                    try await FirestoreService.shared.uploadEntry(entry)
+                } catch {
+                    print("Error uploading entry to cloud: \(error.localizedDescription)")
+                }
+            }
+        }
     }
     
     func updateEntry(_ entry: JournalEntry) {
@@ -309,7 +311,16 @@ class JournalEntryStore: ObservableObject {
                 // Signal that the entries have changed
                 objectWillChange.send()
                 
-                print("Entry updated successfully")
+                // Upload to cloud
+                if Auth.auth().currentUser != nil {
+                    Task {
+                        do {
+                            try await FirestoreService.shared.uploadEntry(entry)
+                        } catch {
+                            print("Error uploading entry update to cloud: \(error.localizedDescription)")
+                        }
+                    }
+                }
             } else {
                 print("Failed to find entry in Core Data")
             }
@@ -320,8 +331,6 @@ class JournalEntryStore: ObservableObject {
     
     // Restore an entry from decay
     func restoreEntry(id: UUID) {
-        print("Restoring entry with ID: \(id)")
-        
         // Find the entry in our local array first
         if let index = entries.firstIndex(where: { $0.id == id }) {
             var entry = entries[index]
@@ -344,13 +353,23 @@ class JournalEntryStore: ObservableObject {
                     entity.decayLevel = 0
                     
                     try container.viewContext.save()
-                    print("Entry restored successfully")
                     
                     // Track successful memory restoration with the achievements system
                     userAchievements?.trackCompletedChallenge(success: true)
                     
                     // Force view update
                     objectWillChange.send()
+                    
+                    // Upload to cloud
+                    if Auth.auth().currentUser != nil {
+                        Task {
+                            do {
+                                try await FirestoreService.shared.uploadEntry(entry)
+                            } catch {
+                                print("Error uploading restored entry to cloud: \(error.localizedDescription)")
+                            }
+                        }
+                    }
                 } else {
                     print("Failed to find entry in Core Data")
                 }
@@ -380,6 +399,17 @@ class JournalEntryStore: ObservableObject {
                 container.viewContext.delete(entityToDelete)
                 saveContext()
                 
+                // Also delete from cloud
+                if Auth.auth().currentUser != nil {
+                    Task {
+                        do {
+                            try await FirestoreService.shared.deleteEntry(id: id)
+                        } catch {
+                            print("Error deleting entry from cloud: \(error.localizedDescription)")
+                        }
+                    }
+                }
+                
                 // Force a refresh of entries to ensure UI updates
                 loadEntries()
             }
@@ -397,7 +427,6 @@ class JournalEntryStore: ObservableObject {
         if container.viewContext.hasChanges {
             do {
                 try container.viewContext.save()
-                print("Context saved successfully")
             } catch {
                 print("Failed to save context: \(error.localizedDescription)")
             }
@@ -418,5 +447,142 @@ class JournalEntryStore: ObservableObject {
     // Update entries when the user signs in/out
     func refreshEntriesForCurrentUser() {
         loadEntries()
+        
+        // Sync with cloud if the user is authenticated
+        if Auth.auth().currentUser != nil {
+            Task {
+                await syncWithCloud()
+            }
+        }
+    }
+    
+    // MARK: - Cloud Synchronization
+    
+    func syncWithCloud() async {
+        guard Auth.auth().currentUser != nil else { 
+            return 
+        }
+        
+        DispatchQueue.main.async {
+            self.isSyncing = true
+        }
+        
+        do {
+            // Use a timeout using Task
+            try await withTimeout(seconds: 15) {
+                // Fetch cloud entries
+                let cloudEntries = try await FirestoreService.shared.fetchEntries()
+                
+                // Find entries to upload (local-only entries)
+                let localEntryIDs = Set(self.entries.map { $0.id })
+                let cloudEntryIDs = Set(cloudEntries.map { $0.id })
+                
+                let localOnlyIDs = localEntryIDs.subtracting(cloudEntryIDs)
+                
+                // Upload local entries that don't exist in the cloud
+                for id in localOnlyIDs {
+                    if let entry = self.entries.first(where: { $0.id == id }) {
+                        try await FirestoreService.shared.uploadEntry(entry)
+                    }
+                }
+                
+                // Download cloud entries that don't exist locally
+                let cloudOnlyEntries = cloudEntries.filter { !localEntryIDs.contains($0.id) }
+                
+                for cloudEntry in cloudOnlyEntries {
+                    await self.saveCloudEntryLocally(cloudEntry)
+                }
+            }
+            
+            DispatchQueue.main.async {
+                self.isSyncing = false
+                self.loadEntries() // Refresh the UI after sync
+            }
+        } catch {
+            DispatchQueue.main.async {
+                self.isSyncing = false
+            }
+        }
+    }
+    
+    /// Helper function to add timeout to an async operation
+    private func withTimeout<T>(seconds: TimeInterval, operation: @escaping () async throws -> T) async throws -> T {
+        try await withThrowingTaskGroup(of: T.self) { group in
+            // Add the main operation
+            group.addTask {
+                try await operation()
+            }
+            
+            // Add a timeout task
+            group.addTask {
+                try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+                throw NSError(domain: "JournalEntryStore", code: 1, userInfo: [
+                    NSLocalizedDescriptionKey: "Operation timed out after \(seconds) seconds"
+                ])
+            }
+            
+            // Return the first completed task (either the operation or the timeout)
+            let result = try await group.next()!
+            // Cancel any remaining tasks
+            group.cancelAll()
+            return result
+        }
+    }
+    
+    private func saveCloudEntryLocally(_ cloudEntry: FirestoreJournalEntry) async {
+        // Create a new CoreData entity from the cloud entry
+        let context = container.viewContext
+        let entity = JournalEntryEntity(context: context)
+        
+        entity.id = cloudEntry.id
+        entity.title = cloudEntry.title
+        entity.content = cloudEntry.content
+        entity.creationDate = cloudEntry.creationDate
+        entity.lastRestoredDate = cloudEntry.lastRestoredDate
+        entity.decayLevel = Int16(cloudEntry.decayLevel)
+        entity.userID = cloudEntry.userID
+        
+        // Save tags
+        if let tagsData = try? JSONEncoder().encode(cloudEntry.tags) {
+            entity.tags = tagsData
+        }
+        
+        // Save custom questions
+        if !cloudEntry.customQuestions.isEmpty {
+            if let questionsData = try? JSONEncoder().encode(cloudEntry.customQuestions) {
+                entity.customQuestions = questionsData
+            }
+        }
+        
+        // Handle photo attachments (download required)
+        if !cloudEntry.photoAttachmentPaths.isEmpty {
+            var localPhotoDict: [String: String] = [:]
+            
+            for (uuid, path) in cloudEntry.photoAttachmentPaths {
+                do {
+                    // Download the photo from Firebase Storage
+                    let imageData = try await FirestoreService.shared.downloadPhoto(path: path)
+                    
+                    // Create a local filename
+                    let fileName = "\(uuid.uuidString).jpg"
+                    let localURL = photoStorageDirectory().appendingPathComponent(fileName)
+                    
+                    // Save the image to local storage
+                    try imageData.write(to: localURL)
+                    
+                    // Add to local dictionary
+                    localPhotoDict[uuid.uuidString] = fileName
+                } catch {
+                    print("Error downloading photo: \(error.localizedDescription)")
+                }
+            }
+            
+            if let photoData = try? JSONEncoder().encode(localPhotoDict) {
+                entity.photoAttachments = photoData
+            }
+        }
+        
+        // Save to CoreData
+        saveContext()
     }
 } 

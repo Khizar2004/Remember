@@ -11,12 +11,9 @@ struct MemoryChallengeView: View {
     
     var body: some View {
         ZStack {
-            // Background
             GlitchTheme.background.ignoresSafeArea()
             
-            // Main content
             VStack(spacing: 20) {
-                // Header
                 HStack {
                     Text("MEMORY RECOVERY")
                         .font(GlitchTheme.terminalFont(size: 24))
@@ -35,12 +32,10 @@ struct MemoryChallengeView: View {
                 .padding(.horizontal)
                 .padding(.top, 20)
                 
-                // Progress indicator
                 ProgressBar(progress: challenge.progress)
                     .frame(height: 8)
                     .padding(.horizontal)
                 
-                // Score indicator
                 if challenge.questions.count > 0 {
                     HStack {
                         Text("SCORE: \(challenge.score)/\(challenge.questions.count)")
@@ -53,13 +48,10 @@ struct MemoryChallengeView: View {
                 }
                 
                 if challenge.isCompleted {
-                    // Challenge completion view
                     completionView
                 } else if let question = challenge.currentQuestion {
-                    // Current question view
                     ScrollView {
                         VStack(spacing: 20) {
-                            // Question
                             Text(question.question)
                                 .font(GlitchTheme.terminalFont(size: 18))
                                 .foregroundColor(GlitchTheme.terminalGreen)
@@ -115,7 +107,6 @@ struct MemoryChallengeView: View {
                         .padding(.bottom, 30)
                     }
                 } else {
-                    // No questions available
                     VStack(spacing: 20) {
                         Image(systemName: "exclamationmark.triangle")
                             .font(.system(size: 60))
@@ -133,7 +124,6 @@ struct MemoryChallengeView: View {
                             .padding(.horizontal)
                         
                         Button(action: {
-                            // Auto-restore memory without questions
                             challenge.onComplete?(true)
                             presentationMode.wrappedValue.dismiss()
                         }) {
@@ -159,12 +149,10 @@ struct MemoryChallengeView: View {
             .opacity(showingResult ? 0.3 : 1)
             .blur(radius: showingResult ? 3 : 0)
             
-            // Result overlay
             if showingResult {
                 resultOverlay
             }
             
-            // Confetti overlay when challenge is completed successfully
             if showingConfetti {
                 ConfettiView()
                     .ignoresSafeArea()
@@ -382,7 +370,6 @@ struct MemoryChallengeView: View {
     }
 }
 
-// Progress bar component
 struct ProgressBar: View {
     var progress: Double
     
@@ -403,7 +390,6 @@ struct ProgressBar: View {
     }
 }
 
-// Confetti view for successful challenge completion
 struct ConfettiView: View {
     @State private var particles = [Particle]()
     

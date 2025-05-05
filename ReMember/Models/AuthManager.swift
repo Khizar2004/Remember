@@ -28,12 +28,11 @@ class AuthManager: ObservableObject {
             DispatchQueue.main.async {
                 self.user = user
                 self.authState = user != nil ? .signedIn : .signedOut
-                print("Auth state changed: \(self.authState)")
             }
         }
     }
     
-    // MARK: - Email Authentication
+    // Email Authentication
     
     /// Sign in with email and password
     func signIn(email: String, password: String) async -> Bool {
@@ -65,7 +64,7 @@ class AuthManager: ObservableObject {
         }
     }
     
-    // MARK: - Google Authentication
+    // Google Authentication
     
     /// Sign in with Google
     func signInWithGoogle() async -> Bool {
@@ -85,8 +84,6 @@ class AuthManager: ObservableObject {
                 throw NSError(domain: "AuthManager", code: 2, userInfo: [NSLocalizedDescriptionKey: "No root view controller found"])
             }
             
-            print("Starting Google Sign-In flow...")
-            
             // Start the sign in flow!
             let gidSignInResult = try await GIDSignIn.sharedInstance.signIn(
                 withPresenting: rootViewController,
@@ -94,7 +91,6 @@ class AuthManager: ObservableObject {
                 additionalScopes: ["email", "profile"]
             )
             
-            print("Google Sign-In successful, getting user info...")
             let user = gidSignInResult.user
             
             // Get the user's ID token and access token
@@ -102,19 +98,16 @@ class AuthManager: ObservableObject {
                 throw NSError(domain: "AuthManager", code: 3, userInfo: [NSLocalizedDescriptionKey: "No ID token from Google Sign-In"]) 
             }
             
-            print("Creating Firebase credential with Google token...")
             // Create a Firebase credential with the Google ID token
             let credential = GoogleAuthProvider.credential(
                 withIDToken: idToken,
                 accessToken: user.accessToken.tokenString
             )
             
-            print("Signing in to Firebase with Google credential...")
             // Sign in to Firebase with the Google Auth credential
             let authResult = try await Auth.auth().signIn(with: credential)
             await setUser(authResult.user)
             await setAuthenticating(false)
-            print("Firebase authentication with Google successful!")
             return true
         } catch {
             print("Google Sign-In error: \(error.localizedDescription)")
@@ -123,7 +116,7 @@ class AuthManager: ObservableObject {
         }
     }
     
-    // MARK: - Sign Out
+    // Sign Out
     
     /// Sign out the current user
     func signOut() -> Bool {
@@ -142,7 +135,7 @@ class AuthManager: ObservableObject {
         }
     }
     
-    // MARK: - Reset Password
+    // Reset Password
     
     /// Send a password reset email
     func resetPassword(email: String) async -> Bool {
@@ -179,7 +172,7 @@ class AuthManager: ObservableObject {
         print("Authentication error: \(error.localizedDescription)")
     }
     
-    // MARK: - User Information
+    // User Information
     
     /// The current user's display name or email
     var displayName: String {
