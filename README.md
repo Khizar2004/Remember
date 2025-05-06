@@ -71,7 +71,10 @@ A journey through fading memories. Re:member is a journaling application where e
 1. Clone this repository
 2. Open ReMember.xcodeproj in Xcode
 3. Add your Firebase configuration file (GoogleService-Info.plist)
-4. Build and run the project on your device or simulator
+4. Copy the Info.plist.template file to Info.plist and replace the placeholder values with your Google Sign-In credentials:
+   - Replace YOUR_REVERSED_CLIENT_ID_HERE with your reversed client ID
+   - Replace YOUR_CLIENT_ID_HERE with your Google client ID
+5. Build and run the project on your device or simulator
 
 ## Personal Note
 
@@ -84,7 +87,7 @@ I hope you find this project both useful and thought-provoking. Your memories de
 ## Connect
 
 Got thoughts, feedback, or just want to say hey?  
-Shoot me an email at [khizaraamir2004@gmail.com](mailto:khizaraamir2004@gmail.com) — I’d love to hear from you!
+Shoot me an email at [khizaraamir2004@gmail.com](mailto:khizaraamir2004@gmail.com) — I'd love to hear from you!
 
 ---
 
