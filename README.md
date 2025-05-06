@@ -86,10 +86,6 @@ I hope you find this project both useful and thought-provoking. Your memories de
 Got thoughts, feedback, or just want to say hey?  
 Shoot me an email at [khizaraamir2004@gmail.com](mailto:khizaraamir2004@gmail.com) — I’d love to hear from you!
 
-## License
-
-This project is licensed under the MIT License.
-
 ---
 
 <p align="center">
