@@ -21,7 +21,7 @@ struct LoginView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(spacing: 20) {
                         // Title with glitch effect
-                        Text("Re:Member")
+                        Text("Re:member")
                             .font(GlitchTheme.glitchFont(size: 32))
                             .foregroundColor(GlitchTheme.terminalGreen)
                             .padding(.top, 40)
