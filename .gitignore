@@ -38,6 +38,11 @@ Carthage/Checkouts/
 
 # Firebase
 GoogleService-Info.plist
+*/GoogleService-Info.plist
+**/GoogleService-Info.plist
+Info.plist
+*/Info.plist
+**/Info.plist
 
 # macOS
 .DS_Store

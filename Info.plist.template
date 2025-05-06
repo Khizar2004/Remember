@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>NSCameraUsageDescription</key>
+    <string>ReMember needs access to your camera to take photos for your memories.</string>
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>ReMember needs access to your photo library to add photos to your memories.</string>
+    <key>CFBundleURLTypes</key>
+    <array>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>Bundle ID</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>com.KhizarAamir.ReMember</string>
+            </array>
+        </dict>
+        <dict>
+            <key>CFBundleTypeRole</key>
+            <string>Editor</string>
+            <key>CFBundleURLName</key>
+            <string>Google Sign In</string>
+            <key>CFBundleURLSchemes</key>
+            <array>
+                <string>YOUR_REVERSED_CLIENT_ID_HERE</string>
+            </array>
+        </dict>
+    </array>
+    <key>GIDClientID</key>
+    <string>YOUR_CLIENT_ID_HERE</string>
+</dict>
+</plist> 
