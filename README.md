@@ -1,6 +1,6 @@
 # Re:member
 
-A journey through fading memories. Re:member is a pixel-art themed journaling application where entries visually degrade over time, simulating the natural decay of memories. The app features a retro, glitchy aesthetic reminiscent of old CRT monitors, creating a unique and nostalgic journaling experience.
+A journey through fading memories. Re:member is a journaling application where entries visually degrade over time, simulating the natural decay of memories. The app features a retro, glitchy aesthetic reminiscent of old CRT monitors, creating a unique and nostalgic journaling experience.
 
 ## Key Features
 
